@@ -223,35 +223,36 @@ class MiseApp {
     // The dinner planner form stays as an OPTIONAL overlay — user can type or just talk.
 
     async autoStart() {
+        // Camera, WebSocket, and Audio are INDEPENDENT — one failing won't kill the others.
+        // This ensures the app works in voice-only, camera-only, or full mode.
+
         this.updateSplash('Starting camera...');
+        await this.startCamera(); // has its own try/catch
+
+        this.updateSplash('Connecting to MISE...');
         try {
-            await this.startCamera();
-            this.updateSplash('Connecting to MISE...');
             await this.connectWebSocket();
-            this.updateSplash('Starting microphone...');
-            await this.startAudio();
-            this.startTimer();
-            this.isCooking = true;
-
-            // Show FAB on mobile
-            const fab = document.getElementById('fabNext');
-            if (fab && window.innerWidth < 768) {
-                fab.classList.add('visible');
-            }
-
-            // Hide splash — planner stays visible as an overlay on the camera
-            // User can type a plan OR just dismiss it and start talking
-            this.splashScreen.classList.add('hidden');
-
         } catch (error) {
-            console.error('[MISE] Auto-start error:', error);
-            this.updateSplash(`Tap "Start Cooking" to begin`);
-
-            // Fall back to manual start — hide splash to reveal planner
-            setTimeout(() => {
-                this.splashScreen.classList.add('hidden');
-            }, 1500);
+            console.error('[MISE] WebSocket failed:', error);
+            this.addMessage('system', '❌ Could not connect to MISE. Please refresh the page.');
+            this.splashScreen.classList.add('hidden');
+            return; // WebSocket is required — can't continue without it
         }
+
+        this.updateSplash('Starting microphone...');
+        await this.startAudio(); // has its own try/catch
+
+        this.startTimer();
+        this.isCooking = true;
+
+        // Show FAB on mobile
+        const fab = document.getElementById('fabNext');
+        if (fab && window.innerWidth < 768) {
+            fab.classList.add('visible');
+        }
+
+        // Hide splash — planner stays visible as an overlay on the camera
+        this.splashScreen.classList.add('hidden');
     }
 
     // Legacy start() — only called if autoStart failed and user clicks the button
@@ -314,22 +315,35 @@ class MiseApp {
     // ── Camera ──────────────────────────────────────────────
 
     async startCamera() {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: 'environment',
-                width: { ideal: 640 },
-                height: { ideal: 480 },
-            },
-            audio: false,
-        });
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                },
+                audio: false,
+            });
 
-        this.cameraFeed.srcObject = stream;
-        this.isCameraActive = true;
+            this.cameraFeed.srcObject = stream;
+            this.isCameraActive = true;
 
-        this.captureCanvas.width = 640;
-        this.captureCanvas.height = 480;
+            this.captureCanvas.width = 640;
+            this.captureCanvas.height = 480;
 
-        this.frameInterval = setInterval(() => this.captureAndSendFrame(), 1000);
+            this.frameInterval = setInterval(() => this.captureAndSendFrame(), 1000);
+        } catch (err) {
+            console.warn('[MISE] Camera error:', err.name, err.message);
+            this.isCameraActive = false;
+            if (err.name === 'NotAllowedError') {
+                this.addMessage('system',
+                    '📷 Camera access denied. MISE can still help via voice — just talk! ' +
+                    'To enable camera, tap the lock icon in your browser\'s address bar.');
+            } else {
+                this.addMessage('system',
+                    '📷 Camera not available on this device. Voice-only mode active.');
+            }
+        }
     }
 
     captureAndSendFrame() {
@@ -350,52 +364,80 @@ class MiseApp {
     // ── Audio ───────────────────────────────────────────────
 
     async startAudio() {
-        this.recordingContext = new AudioContext({ sampleRate: 16000 });
-        this.playbackContext = new AudioContext({ sampleRate: 24000 });
+        try {
+            this.recordingContext = new AudioContext({ sampleRate: 16000 });
+            this.playbackContext = new AudioContext({ sampleRate: 24000 });
 
-        await this.recordingContext.resume();
-        await this.playbackContext.resume();
+            await this.recordingContext.resume();
+            await this.playbackContext.resume();
 
-        this.micStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                sampleRate: 16000,
-                channelCount: 1,
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
-            },
-        });
+            this.micStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    sampleRate: 16000,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
+            });
 
-        // Set up audio recorder (PCM 16kHz mono)
-        await this.recordingContext.audioWorklet.addModule('/static/js/pcm-recorder-processor.js');
-        this.micSource = this.recordingContext.createMediaStreamSource(this.micStream);
-        this.recorderNode = new AudioWorkletNode(this.recordingContext, 'pcm-recorder-processor');
+            // Set up audio recorder (PCM 16kHz mono)
+            await this.recordingContext.audioWorklet.addModule('/static/js/pcm-recorder-processor.js');
+            this.micSource = this.recordingContext.createMediaStreamSource(this.micStream);
+            this.recorderNode = new AudioWorkletNode(this.recordingContext, 'pcm-recorder-processor');
 
-        // Set up analyser for mic level + barge-in detection
-        this.analyserNode = this.recordingContext.createAnalyser();
-        this.analyserNode.fftSize = 256;
-        this.micSource.connect(this.analyserNode);
+            // Set up analyser for mic level + barge-in detection
+            this.analyserNode = this.recordingContext.createAnalyser();
+            this.analyserNode.fftSize = 256;
+            this.micSource.connect(this.analyserNode);
 
-        this.recorderNode.port.onmessage = (event) => {
-            if (this.ws && this.ws.readyState === WebSocket.OPEN && !this.isMuted) {
-                this.ws.send(event.data.buffer);
+            this.recorderNode.port.onmessage = (event) => {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN && !this.isMuted) {
+                    this.ws.send(event.data.buffer);
+                }
+            };
+
+            this.micSource.connect(this.recorderNode);
+            this.recorderNode.connect(this.recordingContext.destination);
+            this.isRecording = true;
+
+            // Set up audio player for agent responses (24kHz)
+            await this.playbackContext.audioWorklet.addModule('/static/js/pcm-player-processor.js');
+            this.playerNode = new AudioWorkletNode(this.playbackContext, 'pcm-player-processor');
+            this.playerNode.connect(this.playbackContext.destination);
+
+            document.getElementById('muteIcon').textContent = '🎙️';
+            document.getElementById('micLabel').textContent = 'Listening...';
+
+            // Start mic level animation + barge-in detection
+            this.startMicLevel();
+        } catch (err) {
+            console.warn('[MISE] Audio error:', err.name, err.message);
+            this.isRecording = false;
+
+            // Even if mic fails, still set up audio PLAYBACK so agent voice works
+            try {
+                if (!this.playbackContext) {
+                    this.playbackContext = new AudioContext({ sampleRate: 24000 });
+                }
+                await this.playbackContext.resume();
+                await this.playbackContext.audioWorklet.addModule('/static/js/pcm-player-processor.js');
+                this.playerNode = new AudioWorkletNode(this.playbackContext, 'pcm-player-processor');
+                this.playerNode.connect(this.playbackContext.destination);
+            } catch (playbackErr) {
+                console.warn('[MISE] Playback setup failed too:', playbackErr);
             }
-        };
 
-        this.micSource.connect(this.recorderNode);
-        this.recorderNode.connect(this.recordingContext.destination);
-        this.isRecording = true;
-
-        // Set up audio player for agent responses (24kHz)
-        await this.playbackContext.audioWorklet.addModule('/static/js/pcm-player-processor.js');
-        this.playerNode = new AudioWorkletNode(this.playbackContext, 'pcm-player-processor');
-        this.playerNode.connect(this.playbackContext.destination);
-
-        document.getElementById('muteIcon').textContent = '🎙️';
-        document.getElementById('micLabel').textContent = 'Listening...';
-
-        // Start mic level animation + barge-in detection
-        this.startMicLevel();
+            if (err.name === 'NotAllowedError') {
+                this.addMessage('system',
+                    '🎙️ Microphone access denied. You can still use text input and hear MISE\'s voice. ' +
+                    'To enable mic, tap the lock icon in your browser\'s address bar.');
+            } else {
+                this.addMessage('system',
+                    '🎙️ Microphone not available. Text input mode active — you can still hear MISE.');
+            }
+            document.getElementById('micLabel').textContent = 'Mic unavailable';
+        }
     }
 
     startMicLevel() {

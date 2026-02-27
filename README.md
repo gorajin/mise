@@ -6,6 +6,14 @@ Built for the [Gemini Live Agent Challenge](https://devpost.com/) using [Google 
 
 ---
 
+## 🌐 Live Demo
+
+> **https://mise-965205106736.us-central1.run.app**
+>
+> Open on your phone. Grant camera + mic permissions. Start cooking.
+
+---
+
 ## ✨ What MISE Does
 
 | Feature | How It Works |

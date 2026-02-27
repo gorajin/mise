@@ -1,0 +1,12 @@
+# gcloudignore — keep Cloud Build context lean
+.git
+.venv
+__pycache__
+*.pyc
+.env
+mise.egg-info
+tests
+terraform
+.gitignore
+.gcloudignore
+HANDOFF.md
