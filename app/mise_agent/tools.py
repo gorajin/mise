@@ -182,3 +182,21 @@ def get_nutrition_estimate(food_item: str) -> dict:
         "note": f"No exact match for '{food_item}'. Ask Google Search for detailed nutritional info.",
         "tip": "For a rough estimate: protein/carbs ≈ 4 cal/g, fat ≈ 9 cal/g.",
     }
+
+
+def update_timeline_step(step_name: str, step_description: str, status: str) -> str:
+    """Update the visual dinner timeline on the user's screen.
+    
+    Use this tool whenever you establish a cooking sequence, or when a user moves 
+    to the next step in their cooking process. This provides a visual confirmation
+    (Agentic Proof) of the workflow you are managing.
+
+    Args:
+        step_name: Short title of the step (e.g., "Prep Veggies", "Sear Steak").
+        step_description: 1-sentence description of what to do (e.g., "Chop onions and garlic.").
+        status: The state of this step. Should be "pending", "active", or "completed".
+
+    Returns:
+        A confirmation message that the UI was updated.
+    """
+    return f"Successfully updated timeline UI: {step_name} -> {status}"

@@ -200,6 +200,15 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                 "data": audio_b64,
                                 "mime_type": part.inline_data.mime_type,
                             })
+                        elif hasattr(part, "function_call") and part.function_call:
+                            # Forward function calls to the browser for UI overlays
+                            args_dict = dict(part.function_call.args) if part.function_call.args else {}
+                            parts_data.append({
+                                "type": "function_call",
+                                "name": part.function_call.name,
+                                "args": args_dict
+                            })
+                            print(f"[MISE] Tool called: {part.function_call.name} {args_dict}")
 
                 # Extract output transcription (what the agent is saying)
                 if event.output_transcription and event.output_transcription.text:

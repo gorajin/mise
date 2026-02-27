@@ -47,10 +47,10 @@ Browser (Phone) ──WebSocket──▶ FastAPI Server ──ADK bidi──▶ 
 | **Testing** | pytest (25 tests for grounding tools) |
 
 ### What Makes It Special
-1. **Proactive Observation Loop** — Most voice assistants wait for you to ask. MISE watches the camera every 15-25 seconds and speaks up when it sees something: "I see smoke — lower the heat" or "Those strawberries are Dirty Dozen — vinegar bath."
-2. **Barge-In Interruption** — You can interrupt MISE mid-sentence. The AudioWorklet player flushes its buffer immediately, so there's no awkward overlap.
-3. **Dual AudioContext** — Mic recording at 16kHz (what the Live API expects) and agent playback at 24kHz (what the API sends). A single AudioContext can only have one sample rate, so we use two.
-4. **Grounding Tools** — Food safety temps come from USDA data, not hallucinated. Produce safety uses EWG's Dirty Dozen/Clean Fifteen lists. Nutrition is grounded in USDA FoodData Central.
+1. **Agentic Workflows (Built-in)** — MISE isn't just a chatbot; it's a coordinator. When you tell it what you're making, it generates a **Dinner Timeline** that dynamically updates on-screen as you progress.
+2. **Proactive Observation Loop** — Most voice assistants wait for you to ask. MISE watches the camera every 15-25 seconds and speaks up when it sees something: "I see smoke — lower the heat" or "Those strawberries are Dirty Dozen — vinegar bath."
+3. **Barge-In Interruption** — You can interrupt MISE mid-sentence. The AudioWorklet player flushes its buffer immediately, so there's no awkward overlap.
+4. **Visual Content Grounding** — Food safety temps, produce safety, and nutrition are grounded in USDA/EWG local databases. When the agent uses these tools, a **HUD-style overlay card** pops up on the video feed to confirm exactly what data is being referenced.
 
 ## Challenges
 - **Model selection**: `gemini-2.0-flash-exp-image-generation` doesn't support image input via `bidiGenerateContent`. Switching to `gemini-2.0-flash-live-001` was the fix.
@@ -58,11 +58,13 @@ Browser (Phone) ──WebSocket──▶ FastAPI Server ──ADK bidi──▶ 
 - **Audio pipeline**: Getting dual sample rates right (16kHz in, 24kHz out) required separate AudioContexts and careful AudioWorklet design.
 - **Barge-in**: The Live API handles server-side interruption, but the client-side player keeps playing buffered audio. We had to add a `flush` command to the AudioWorklet processor.
 
-## What's Next
-- Smart glasses integration (architecture already supports it — WebSocket is hardware-agnostic)
+## The "Smart Glasses" Future (What's Next)
+MISE was intentionally built as a stateless HTML/JS frontend communicating over WebSockets to a Cloud Run backend. 
+**This architecture makes it instantly compatible with emerging AR smart glasses.** You won't even need your phone on the counter. The glasses will send the video frames and audio, and MISE will project the Dinner Timeline and Tool Overlays directly into your field of view while you cook.
+
+For immediate software roadmap:
 - Multiple concurrent timers for complex multi-dish coordination
-- Temperature card overlays when the agent calls safety tools
-- Step progress visualization for dinner timeline
+- Saving successful dinnertime playbooks to user profiles
 
 ## Built With
 `google-adk` · `gemini-2.0-flash` · `fastapi` · `websocket` · `audioworklet` · `google-cloud-run` · `python` · `javascript`

@@ -8,7 +8,7 @@ produce safety expert, and nutrition-aware companion — all in one.
 import os
 from google.adk import Agent
 from google.adk.tools import google_search
-from .tools import get_food_safety_data, get_produce_safety_data, get_nutrition_estimate
+from .tools import get_food_safety_data, get_produce_safety_data, get_nutrition_estimate, update_timeline_step
 
 MISE_INSTRUCTION = """You are MISE, a live kitchen intelligence agent — a hands-free kitchen 
 companion that helps home cooks become genuinely better chefs. Your name comes from 
@@ -57,8 +57,9 @@ first moment.
 When a user starts, understand what they're making and when they want to eat.
 BUILD A TIMELINE working backwards:
 - Calculate when each dish needs to start (prep + cook time)
-- Identify parallel tasks  
+- Evaluate parallel tasks  
 - Walk them through ONE step at a time, at THEIR pace
+- **CRITICAL: Whenever you build or update a timeline, use the `update_timeline_step` tool** to sync the visual UI. Use it to mark steps as "pending" up front, "active" when working on them, and "completed" when done. This is the visual anchor for the user.
 - Proactively announce transitions: "Time to start the asparagus — 6 minutes."
 - Adapt when they fall behind: "Running a bit behind — push asparagus back 5 minutes."
 - Goal: EVERYTHING hits the plate at the same time, hot
@@ -197,6 +198,6 @@ Be matter-of-fact:
 agent = Agent(
     name="mise_agent",
     model=os.getenv("MISE_MODEL", "gemini-2.0-flash-live-001"),
-    tools=[google_search, get_food_safety_data, get_produce_safety_data, get_nutrition_estimate],
+    tools=[google_search, get_food_safety_data, get_produce_safety_data, get_nutrition_estimate, update_timeline_step],
     instruction=MISE_INSTRUCTION,
 )

@@ -681,6 +681,10 @@ class MiseApp {
                     if (part.type === 'audio' && part.data) {
                         this.playAudio(part.data);
                     }
+
+                    if (part.type === 'function_call' && part.name) {
+                        this.handleFunctionCall(part);
+                    }
                 }
             }
 
@@ -699,6 +703,92 @@ class MiseApp {
         } catch (e) {
             console.error('[MISE] Message parse error:', e);
         }
+    }
+
+    handleFunctionCall(call) {
+        if (call.name === 'update_timeline_step') {
+            this.updateTimelineUI(call.args);
+        } else if (['get_food_safety_data', 'get_produce_safety_data', 'get_nutrition_estimate'].includes(call.name)) {
+            this.showToolHUD(call.name, call.args);
+        }
+    }
+
+    updateTimelineUI(args) {
+        const widget = document.getElementById('timelineWidget');
+        const list = document.getElementById('timelineSteps');
+        if (!widget || !list) return;
+
+        widget.classList.remove('hidden');
+
+        // Clean step name for ID
+        const cleanName = (args.step_name || 'step').toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const stepId = `step-${cleanName}`;
+
+        // Find existing or create new
+        let stepEl = document.getElementById(stepId);
+        if (!stepEl) {
+            stepEl = document.createElement('li');
+            stepEl.id = stepId;
+            stepEl.className = 'timeline-step';
+            stepEl.innerHTML = `
+                <div class="step-indicator"></div>
+                <div class="step-content">
+                    <h4>${this.escapeHtml(args.step_name || '')}</h4>
+                    <p>${this.escapeHtml(args.step_description || '')}</p>
+                </div>
+            `;
+            list.appendChild(stepEl);
+        }
+
+        // Update state
+        const status = args.status || 'pending';
+        stepEl.dataset.status = status;
+
+        if (status === 'active') {
+            document.querySelectorAll('.timeline-step').forEach(el => el.classList.remove('active'));
+            stepEl.classList.remove('completed');
+            stepEl.classList.add('active');
+            stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else if (status === 'completed') {
+            stepEl.classList.remove('active');
+            stepEl.classList.add('completed');
+        } else {
+            stepEl.classList.remove('active', 'completed');
+        }
+    }
+
+    showToolHUD(toolName, args) {
+        const overlay = document.getElementById('toolHudOverlay');
+        if (!overlay) return;
+
+        let title = "Safety Check";
+        let icon = "🔍";
+        let desc = "Retrieving data...";
+
+        if (toolName === 'get_food_safety_data') {
+            title = "USDA Safety";
+            icon = "🌡️";
+            desc = args.food_item || "Checking temp...";
+        } else if (toolName === 'get_produce_safety_data') {
+            title = "EWG Produce";
+            icon = "🥬";
+            desc = args.produce_item || "Checking wash method...";
+        } else if (toolName === 'get_nutrition_estimate') {
+            title = "USDA Nutrition";
+            icon = "📊";
+            desc = args.food_item || "Checking calories...";
+        }
+
+        overlay.querySelector('.hud-icon').textContent = icon;
+        overlay.querySelector('.hud-title').textContent = title;
+        overlay.querySelector('.hud-desc').textContent = desc;
+
+        overlay.classList.add('active');
+
+        if (this.hudTimeout) clearTimeout(this.hudTimeout);
+        this.hudTimeout = setTimeout(() => {
+            overlay.classList.remove('active');
+        }, 5000);
     }
 
     // ── Timer Parsing ───────────────────────────────────────
