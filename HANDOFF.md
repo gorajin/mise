@@ -1,9 +1,9 @@
 # MISE — Agent Handoff Document
 
-> **Last updated:** 2026-02-26 21:40 PST  
-> **Status:** Phase A-D complete. Phase E (demo video) remaining.  
+> **Last updated:** 2026-02-26 22:35 PST  
+> **Status:** Phase A-F complete. Phase E (demo video) remaining.  
 > **Live URL:** https://mise-965205106736.us-central1.run.app  
-> **Cloud Run:** Project `gen-lang-client-0991814371`, region `us-central1`, revision `mise-00002-gnk`
+> **Cloud Run:** Project `gen-lang-client-0991814371`, region `us-central1`
 
 ---
 
@@ -17,7 +17,19 @@ MISE (Live Kitchen Intelligence) is a **hands-free dinner coordinator** built fo
 
 ## 2. What Was Done This Session
 
-### Phase D: Deploy & Ship ✅
+### Phase F: Visual HUD + Model Fix ✅
+
+| Task | Status | Details |
+|------|--------|---------|
+| AI Status Indicator | ✅ Done | Animated ring (idle/listening/speaking/thinking) via CSS |
+| Rich Tool Data Cards | ✅ Done | Shows actual temps, nutrition, safety data from grounding tools |
+| Live Caption Bar | ✅ Done | Subtitles on camera feed, auto-fades after 4s |
+| Backend function_response forwarding | ✅ Done | Tool results now sent to browser for rich cards |
+| Fix deprecated model | ✅ Done | `gemini-2.0-flash-live-001` → `gemini-2.5-flash-native-audio-preview-12-2025` |
+| Git push | ✅ Done | Commit `9d9ed65`, pushed to `origin/main` |
+| Cloud Run redeploy | ✅ Done | Redeployed with new model and HUD |
+
+### Previous: Phase D: Deploy & Ship ✅
 
 | Task | Status | Details |
 |------|--------|---------|
@@ -69,18 +81,15 @@ MISE (Live Kitchen Intelligence) is a **hands-free dinner coordinator** built fo
 | PWA manifest | ✅ Installable |
 | Splash screen | ✅ Animated, auto-dismiss |
 | Permission denied handling | ✅ Camera/mic/WS independent |
+| AI Status Indicator | ✅ CSS ring with 4 states (idle, listening, speaking, thinking) |
+| Rich Tool Data Cards | ✅ Live grounding data overlay (temps, nutrition, safety badges) |
+| Live Caption Bar | ✅ Auto-fading subtitles on camera feed |
 | Cloud Run deployment | ✅ Live at https://mise-965205106736.us-central1.run.app |
 | Devpost content | ✅ Ready to paste |
 
 ---
 
 ## 4. Known Issues
-
-### 🟡 P1: Camera vision needs live testing on phone
-Model `gemini-2.0-flash-live-001` supports image input but needs manual testing to confirm agent references what it sees.
-
-### 🟡 P1: Audio playback needs live testing
-Audio pipeline is set up correctly but needs testing with headphones.
 
 ### 🟢 P2: Barge-in threshold tuning
 `BARGE_IN_THRESHOLD` (default 15) may need tuning for noisy kitchens.
@@ -96,8 +105,8 @@ Audio pipeline is set up correctly but needs testing with headphones.
 - [ ] **Push to public GitHub** (update repo URL in README and DEVPOST.md)
 
 ### Nice-to-Have (Post-Submission)
-- [ ] Temperature cards from grounding tools
-- [ ] Step progress indicator for dinner timeline
+- [x] Temperature cards from grounding tools — **Done (Rich Tool Data Cards)**
+- [x] Step progress indicator for dinner timeline — **Exists (Timeline Widget)**
 - [ ] Multiple concurrent timers
 - [ ] Smart glasses pitch
 
@@ -121,13 +130,14 @@ Audio pipeline is set up correctly but needs testing with headphones.
 ## 7. Key Architecture
 
 ```
-Browser (Phone) ──WebSocket──▶ FastAPI Server ──ADK bidi──▶ Gemini 2.0 Flash Live API
+Browser (Phone) ──WebSocket──▶ FastAPI Server ──ADK bidi──▶ Gemini 2.5 Flash Live API
   ├── Camera (1fps JPEG)              │
   ├── Mic (PCM 16kHz)                 ├── Observation Loop (proactive)
   ├── Audio Player (24kHz)            ├── get_food_safety_data (USDA)
-  └── Barge-in (buffer flush)         ├── get_produce_safety_data (EWG)
-                                      ├── get_nutrition_estimate (USDA)
-                                      └── google_search (grounding)
+  ├── Barge-in (buffer flush)         ├── get_produce_safety_data (EWG)
+  ├── AI Status Ring (CSS)            ├── get_nutrition_estimate (USDA)
+  ├── Tool Data Cards                 └── google_search (grounding)
+  └── Caption Bar
 ```
 
 ---
@@ -171,3 +181,4 @@ gcloud run deploy mise --source . --region us-central1 --allow-unauthenticated \
 | 10 | Agent says "no camera" | Model switch + prompt reinforcement | `agent.py` |
 | 11 | Agent keeps talking on interrupt | Barge-in: mic level → flush buffer | `app.js` |
 | 12 | Camera denied kills entire app | Independent try/catch per component | `app.js` |
+| 13 | `gemini-2.0-flash-live-001` deprecated | Switched to `gemini-2.5-flash-native-audio-preview-12-2025` | `agent.py` |
