@@ -912,75 +912,308 @@ body {
 
 
 /* ═══════════════════════════════════════════════════
-   TOOL HUD OVERLAY
+   AI STATUS INDICATOR
    ═══════════════════════════════════════════════════ */
 
-.tool-hud-overlay {
+.ai-status-ring {
     position: absolute;
-    top: 60px;
-    /* Below Top bar */
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    z-index: 20;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 48px;
+    z-index: 12;
     pointer-events: none;
-    opacity: 0;
-    transform: translateY(-20px);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.tool-hud-overlay.active {
+.ring-core {
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-copper);
+    opacity: 0.4;
+    animation: ring-breathe 3s ease-in-out infinite;
+}
+
+.ring-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Idle — subtle breathing */
+@keyframes ring-breathe {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform: scale(1.08);
+        opacity: 0.5;
+    }
+}
+
+/* Listening — brighter, responsive pulse */
+.ai-status-ring.listening .ring-core {
+    opacity: 0.7;
+    border-color: var(--accent-copper-bright);
+    animation: ring-listen 1.5s ease-in-out infinite;
+}
+
+.ai-status-ring.listening .ring-glow {
+    opacity: 1;
+    box-shadow: 0 0 20px 4px rgba(232, 166, 124, 0.25);
+    animation: ring-listen 1.5s ease-in-out infinite;
+}
+
+@keyframes ring-listen {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+/* Speaking — animated outward pulse */
+.ai-status-ring.speaking .ring-core {
+    opacity: 1;
+    border-color: var(--accent-copper-bright);
+    border-width: 2.5px;
+    animation: ring-speak 0.8s ease-in-out infinite;
+}
+
+.ai-status-ring.speaking .ring-glow {
+    opacity: 1;
+    box-shadow: 0 0 28px 8px rgba(232, 166, 124, 0.35);
+    animation: ring-speak-glow 0.8s ease-in-out infinite;
+}
+
+@keyframes ring-speak {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+@keyframes ring-speak-glow {
+
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Thinking — spinning arc */
+.ai-status-ring.thinking .ring-core {
+    border-color: transparent;
+    border-top-color: var(--accent-gold);
+    border-right-color: var(--accent-gold);
+    opacity: 0.9;
+    animation: ring-spin 0.8s linear infinite;
+}
+
+.ai-status-ring.thinking .ring-glow {
+    opacity: 1;
+    box-shadow: 0 0 16px 4px rgba(201, 169, 110, 0.25);
+}
+
+@keyframes ring-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ═══════════════════════════════════════════════════
+   TOOL DATA CARDS
+   ═══════════════════════════════════════════════════ */
+
+.tool-cards-container {
+    position: absolute;
+    top: 50px;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 18;
+    pointer-events: none;
+    max-width: 280px;
+}
+
+.tool-data-card {
+    background: rgba(13, 13, 13, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    animation: card-slide-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transition: opacity 0.4s ease;
+}
+
+.tool-data-card.dismissing {
+    opacity: 0;
+    transform: translateX(30px);
+    transition: all 0.3s ease;
+}
+
+@keyframes card-slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.tool-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.tool-card-icon {
+    font-size: 16px;
+}
+
+.tool-card-source {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--accent-gold);
+    font-weight: 600;
+}
+
+.tool-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.tool-card-detail {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.tool-card-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    margin-top: 6px;
+}
+
+.badge-danger {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid rgba(232, 93, 58, 0.3);
+}
+
+.badge-safe {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid rgba(90, 184, 122, 0.3);
+}
+
+/* Macro bars for nutrition card */
+.macro-bars {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.macro-bar {
+    flex: 1;
+    text-align: center;
+}
+
+.macro-bar-fill {
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 3px;
+}
+
+.macro-bar-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.macro-protein .macro-bar-fill {
+    background: #5ab87a;
+}
+
+.macro-carbs .macro-bar-fill {
+    background: var(--accent-gold);
+}
+
+.macro-fat .macro-bar-fill {
+    background: var(--accent-copper);
+}
+
+/* ═══════════════════════════════════════════════════
+   LIVE CAPTION BAR
+   ═══════════════════════════════════════════════════ */
+
+.caption-bar {
+    position: absolute;
+    bottom: 126px;
+    left: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    z-index: 11;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.caption-bar.active {
     opacity: 1;
     transform: translateY(0);
 }
 
-.hud-card {
-    background: rgba(26, 23, 20, 0.85);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--accent-gold);
-    border-radius: var(--radius-full);
-    padding: 8px 16px 8px 8px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    max-width: 90%;
-}
-
-.hud-icon {
-    width: 36px;
-    height: 36px;
-    background: rgba(201, 169, 110, 0.15);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
-}
-
-.hud-content {
-    display: flex;
-    flex-direction: column;
-}
-
-.hud-title {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--accent-gold);
-    margin-bottom: 2px;
-}
-
-.hud-desc {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-primary);
-    white-space: nowrap;
+.caption-text {
+    font-size: 13px;
+    line-height: 1.4;
+    color: rgba(240, 235, 228, 0.92);
+    margin: 0;
+    text-align: center;
     overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 

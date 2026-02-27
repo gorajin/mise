@@ -197,7 +197,7 @@ Be matter-of-fact:
 
 agent = Agent(
     name="mise_agent",
-    model=os.getenv("MISE_MODEL", "gemini-2.0-flash-live-001"),
+    model=os.getenv("MISE_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"),
     tools=[google_search, get_food_safety_data, get_produce_safety_data, get_nutrition_estimate, update_timeline_step],
     instruction=MISE_INSTRUCTION,
 )

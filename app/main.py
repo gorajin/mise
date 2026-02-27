@@ -209,6 +209,21 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                 "args": args_dict
                             })
                             print(f"[MISE] Tool called: {part.function_call.name} {args_dict}")
+                        elif hasattr(part, "function_response") and part.function_response:
+                            # Forward tool results to browser for rich data cards
+                            try:
+                                response_data = part.function_response.response if part.function_response.response else {}
+                                # Convert to plain dict if needed
+                                if hasattr(response_data, 'items'):
+                                    response_data = dict(response_data)
+                                parts_data.append({
+                                    "type": "function_response",
+                                    "name": part.function_response.name,
+                                    "response": response_data,
+                                })
+                                print(f"[MISE] Tool result: {part.function_response.name}")
+                            except Exception:
+                                pass  # Don't break streaming for UI-only feature
 
                 # Extract output transcription (what the agent is saying)
                 if event.output_transcription and event.output_transcription.text:

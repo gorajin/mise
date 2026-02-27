@@ -42,6 +42,12 @@ class MiseApp {
         this.cookingTimerInterval = null;
         this.cookingTimerSeconds = 0;
 
+        // HUD state
+        this.aiRingState = 'idle';
+        this.captionTimeout = null;
+        this.toolCardDismissTimers = [];
+        this.pendingToolCalls = {}; // track in-flight tool calls
+
         // Audio
         this.recordingContext = null;
         this.playbackContext = null;
@@ -67,6 +73,10 @@ class MiseApp {
         this.splashScreen = document.getElementById('splashScreen');
         this.splashStatus = document.getElementById('splashStatus');
         this.transcriptPanel = document.getElementById('transcriptPanel');
+        this.aiStatusRing = document.getElementById('aiStatusRing');
+        this.captionBar = document.getElementById('captionBar');
+        this.captionText = document.getElementById('captionText');
+        this.toolCardsContainer = document.getElementById('toolCardsContainer');
 
         this.init();
     }
@@ -460,8 +470,14 @@ class MiseApp {
             } else {
                 levelBar.style.width = pct + '%';
 
+                // AI ring: listening state when mic is picking up sound
+                if (!this.isAgentSpeaking && avg > 5) {
+                    this.updateAIStatus('listening');
+                } else if (!this.isAgentSpeaking && avg <= 5 && this.aiRingState === 'listening') {
+                    this.updateAIStatus('idle');
+                }
+
                 // ── BARGE-IN DETECTION ──
-                // If user is speaking loud enough while agent is speaking, interrupt
                 if (avg > this.BARGE_IN_THRESHOLD && this.isAgentSpeaking && !this.bargeInCooldown) {
                     this.bargeIn();
                 }
@@ -544,9 +560,10 @@ class MiseApp {
 
         this.playerNode.port.postMessage(float32);
 
-        // Track speaking state for barge-in
+        // Track speaking state for barge-in + AI ring
         this.isAgentSpeaking = true;
         this.showAgentSpeaking(true);
+        this.updateAIStatus('speaking');
 
         // Estimate when this chunk finishes playing
         const durationMs = (float32.length / 24000) * 1000;
@@ -554,7 +571,8 @@ class MiseApp {
         this.speakingTimeout = setTimeout(() => {
             this.isAgentSpeaking = false;
             this.showAgentSpeaking(false);
-        }, durationMs + 200); // small buffer
+            this.updateAIStatus('idle');
+        }, durationMs + 200);
     }
 
     // ── WebSocket ───────────────────────────────────────────
@@ -653,6 +671,9 @@ class MiseApp {
                             this.updateStreamingMessage(this.currentAgentElement, this.currentAgentMessage);
                         }
 
+                        // Live caption bar
+                        this.updateCaptionBar(this.currentAgentMessage);
+
                         // Safety keyword detection
                         const alertKeywords = [
                             'wash', 'rinse', 'pesticide', 'dirty dozen',
@@ -685,6 +706,10 @@ class MiseApp {
                     if (part.type === 'function_call' && part.name) {
                         this.handleFunctionCall(part);
                     }
+
+                    if (part.type === 'function_response' && part.name) {
+                        this.handleFunctionResponse(part);
+                    }
                 }
             }
 
@@ -709,8 +734,26 @@ class MiseApp {
         if (call.name === 'update_timeline_step') {
             this.updateTimelineUI(call.args);
         } else if (['get_food_safety_data', 'get_produce_safety_data', 'get_nutrition_estimate'].includes(call.name)) {
-            this.showToolHUD(call.name, call.args);
+            // Show thinking state on AI ring + store pending call
+            this.updateAIStatus('thinking');
+            this.pendingToolCalls[call.name] = call.args;
+            this.showToolCard(call.name, call.args, null);
         }
+    }
+
+    handleFunctionResponse(response) {
+        const name = response.name;
+        const data = response.response || {};
+        const args = this.pendingToolCalls[name] || {};
+        delete this.pendingToolCalls[name];
+
+        // Clear thinking state if no more pending calls
+        if (Object.keys(this.pendingToolCalls).length === 0 && this.aiRingState === 'thinking') {
+            this.updateAIStatus(this.isAgentSpeaking ? 'speaking' : 'idle');
+        }
+
+        // Update the existing card with real data
+        this.showToolCard(name, args, data);
     }
 
     updateTimelineUI(args) {
@@ -757,38 +800,133 @@ class MiseApp {
         }
     }
 
-    showToolHUD(toolName, args) {
-        const overlay = document.getElementById('toolHudOverlay');
-        if (!overlay) return;
+    showToolCard(toolName, args, resultData) {
+        if (!this.toolCardsContainer) return;
 
-        let title = "Safety Check";
-        let icon = "🔍";
-        let desc = "Retrieving data...";
+        // Card ID to update existing card for same tool
+        const cardId = `tool-card-${toolName}`;
+        let card = document.getElementById(cardId);
+
+        let icon = '🔍';
+        let source = 'DATA LOOKUP';
+        let title = '';
+        let detail = '';
+        let badge = '';
 
         if (toolName === 'get_food_safety_data') {
-            title = "USDA Safety";
-            icon = "🌡️";
-            desc = args.food_item || "Checking temp...";
+            icon = '🌡️';
+            source = 'USDA FOOD SAFETY';
+            const item = args.food_item || 'Food';
+            if (resultData && resultData.safe_internal_temp_f) {
+                title = `${item} → ${resultData.safe_internal_temp_f}°F`;
+                detail = resultData.notes || resultData.tip || `Safe internal temperature`;
+                badge = `<span class="tool-card-badge badge-safe">✓ SAFE ABOVE ${resultData.safe_internal_temp_f}°F</span>`;
+            } else if (resultData) {
+                title = item;
+                detail = resultData.danger_zone || resultData.note || 'Follow food safety guidelines';
+                badge = '<span class="tool-card-badge badge-safe">✓ GUIDELINES</span>';
+            } else {
+                title = `Checking ${item}...`;
+                detail = 'Retrieving safe temperature data';
+            }
         } else if (toolName === 'get_produce_safety_data') {
-            title = "EWG Produce";
-            icon = "🥬";
-            desc = args.produce_item || "Checking wash method...";
+            icon = '🥬';
+            source = 'EWG PRODUCE SAFETY';
+            const item = args.produce_item || 'Produce';
+            if (resultData) {
+                title = item;
+                detail = resultData.wash_method || 'Rinse thoroughly';
+                if (resultData.is_dirty_dozen) {
+                    badge = '<span class="tool-card-badge badge-danger">⚠ DIRTY DOZEN</span>';
+                } else if (resultData.is_clean_fifteen) {
+                    badge = '<span class="tool-card-badge badge-safe">✓ CLEAN FIFTEEN</span>';
+                }
+            } else {
+                title = `Checking ${item}...`;
+                detail = 'Looking up wash method';
+            }
         } else if (toolName === 'get_nutrition_estimate') {
-            title = "USDA Nutrition";
-            icon = "📊";
-            desc = args.food_item || "Checking calories...";
+            icon = '📊';
+            source = 'USDA NUTRITION';
+            const item = args.food_item || 'Food';
+            if (resultData && (resultData.calories_per_serving || resultData.calories)) {
+                const cal = resultData.calories_per_serving || resultData.calories;
+                const protein = resultData.protein_g || 0;
+                const carbs = resultData.carbs_g || 0;
+                const fat = resultData.fat_g || 0;
+                title = `${item} — ${cal} cal`;
+                const serving = resultData.serving_size || '';
+                detail = serving ? `Per ${serving}` : '';
+                badge = `<div class="macro-bars">
+                    <div class="macro-bar macro-protein"><div class="macro-bar-fill" style="width:${Math.min(100, protein * 2)}%"></div><div class="macro-bar-label">${protein}g P</div></div>
+                    <div class="macro-bar macro-carbs"><div class="macro-bar-fill" style="width:${Math.min(100, carbs)}%"></div><div class="macro-bar-label">${carbs}g C</div></div>
+                    <div class="macro-bar macro-fat"><div class="macro-bar-fill" style="width:${Math.min(100, fat * 2)}%"></div><div class="macro-bar-label">${fat}g F</div></div>
+                </div>`;
+            } else if (resultData) {
+                title = item;
+                detail = resultData.note || resultData.tip || 'Estimated nutrition';
+            } else {
+                title = `Checking ${item}...`;
+                detail = 'Looking up nutrition data';
+            }
         }
 
-        overlay.querySelector('.hud-icon').textContent = icon;
-        overlay.querySelector('.hud-title').textContent = title;
-        overlay.querySelector('.hud-desc').textContent = desc;
+        // Build or update card
+        if (!card) {
+            card = document.createElement('div');
+            card.id = cardId;
+            card.className = 'tool-data-card';
+            this.toolCardsContainer.appendChild(card);
 
-        overlay.classList.add('active');
+            // Limit to 3 cards max
+            while (this.toolCardsContainer.children.length > 3) {
+                this.toolCardsContainer.removeChild(this.toolCardsContainer.firstChild);
+            }
+        }
 
-        if (this.hudTimeout) clearTimeout(this.hudTimeout);
-        this.hudTimeout = setTimeout(() => {
-            overlay.classList.remove('active');
-        }, 5000);
+        card.innerHTML = `
+            <div class="tool-card-header">
+                <span class="tool-card-icon">${icon}</span>
+                <span class="tool-card-source">${source}</span>
+            </div>
+            <div class="tool-card-title">${this.escapeHtml(title)}</div>
+            ${detail ? `<div class="tool-card-detail">${this.escapeHtml(detail)}</div>` : ''}
+            ${badge}
+        `;
+
+        // Auto-dismiss after 8 seconds (reset timer if updated)
+        if (card._dismissTimer) clearTimeout(card._dismissTimer);
+        card._dismissTimer = setTimeout(() => {
+            card.classList.add('dismissing');
+            setTimeout(() => card.remove(), 400);
+        }, resultData ? 8000 : 15000); // longer timeout while waiting for result
+    }
+
+    // ── AI Status Indicator ─────────────────────────────────
+
+    updateAIStatus(state) {
+        if (!this.aiStatusRing || state === this.aiRingState) return;
+        this.aiStatusRing.classList.remove('idle', 'listening', 'speaking', 'thinking');
+        this.aiStatusRing.classList.add(state);
+        this.aiRingState = state;
+    }
+
+    // ── Live Caption Bar ────────────────────────────────────
+
+    updateCaptionBar(text) {
+        if (!this.captionBar || !this.captionText) return;
+
+        // Show last portion of text (caption-style)
+        const maxLen = 120;
+        const display = text.length > maxLen ? '...' + text.slice(-maxLen) : text;
+        this.captionText.textContent = display;
+        this.captionBar.classList.add('active');
+
+        // Auto-hide after agent stops
+        if (this.captionTimeout) clearTimeout(this.captionTimeout);
+        this.captionTimeout = setTimeout(() => {
+            this.captionBar.classList.remove('active');
+        }, 4000);
     }
 
     // ── Timer Parsing ───────────────────────────────────────
