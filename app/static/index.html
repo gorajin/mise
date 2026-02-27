@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MISE — Live Kitchen Intelligence</title>
+    <meta name="description"
+        content="Your AI sous chef — a hands-free dinner coordinator with real-time camera vision.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <span class="logo-icon">🔥</span>
+                <h1>MISE</h1>
+                <span class="logo-subtitle">Live Kitchen Intelligence</span>
+            </div>
+            <div class="header-controls">
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Disconnected</span>
+                </div>
+                <div class="session-timer" id="sessionTimer">00:00</div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Camera Panel -->
+            <section class="camera-panel">
+                <div class="camera-container" id="cameraContainer">
+                    <video id="cameraFeed" autoplay playsinline muted></video>
+                    <canvas id="captureCanvas" style="display: none;"></canvas>
+
+                    <!-- Safety Alert Overlay -->
+                    <div class="safety-overlay" id="safetyOverlay">
+                        <div class="safety-alert">
+                            <span class="safety-icon">⚠️</span>
+                            <p id="safetyMessage"></p>
+                        </div>
+                    </div>
+
+                    <!-- Camera Controls Overlay -->
+                    <div class="camera-controls">
+                        <div class="cooking-state" id="cookingState">
+                            <span class="state-label">Ready</span>
+                        </div>
+                    </div>
+
+                    <!-- No Camera Placeholder / Start Screen -->
+                    <div class="camera-placeholder" id="cameraPlaceholder">
+                        <div class="placeholder-content">
+                            <div class="start-brand">
+                                <span class="start-logo">🔥</span>
+                                <h2>MISE</h2>
+                                <p class="start-tagline">Your hands-free dinner coordinator</p>
+                            </div>
+
+                            <!-- Dinner Planner -->
+                            <div class="dinner-planner" id="dinnerPlanner">
+                                <div class="planner-field">
+                                    <label for="mealInput">What are you making tonight?</label>
+                                    <input type="text" id="mealInput"
+                                        placeholder="e.g., Steak, roasted potatoes, and asparagus" autocomplete="off">
+                                </div>
+                                <div class="planner-field">
+                                    <label for="timeInput">When do you want to eat?</label>
+                                    <input type="time" id="timeInput" value="19:00">
+                                </div>
+                                <button class="btn-primary" id="startButton">
+                                    <span>Start Cooking</span>
+                                    <span class="btn-arrow">→</span>
+                                </button>
+                                <button class="btn-secondary" id="startFreeButton">
+                                    or just start without a plan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audio Indicator -->
+                <div class="audio-indicator" id="audioIndicator">
+                    <div class="mic-status">
+                        <span class="mic-icon" id="micIcon">🎙️</span>
+                        <span class="mic-label" id="micLabel">Tap Start to begin</span>
+                    </div>
+                    <div class="agent-speaking" id="agentSpeaking">
+                        <div class="wave-container">
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                        </div>
+                        <span>MISE is speaking...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Transcript Panel -->
+            <section class="transcript-panel">
+                <div class="transcript-header">
+                    <h2>Live Transcript</h2>
+                    <button class="btn-icon" id="clearTranscript" title="Clear">✕</button>
+                </div>
+                <div class="transcript-messages" id="transcriptMessages">
+                    <div class="message system-message">
+                        <div class="message-content">
+                            <p>👋 <strong>Hey chef!</strong> I'm MISE — your hands-free dinner coordinator.</p>
+                            <p class="message-hint">Tell me what you're making and when you want to eat. I'll build your
+                                timeline, walk you through every step, and keep an eye on things through your camera.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="quick-btn" data-text="What should I do next?">👨‍🍳 Next step?</button>
+                    <button class="quick-btn" data-text="How much longer?">⏱️ How long?</button>
+                    <button class="quick-btn" data-text="What temperature should this be?">🌡️ Temp?</button>
+                    <button class="quick-btn" data-text="Is this done?">✅ Done?</button>
+                    <button class="quick-btn" data-text="What can I substitute?">🔄 Sub?</button>
+                </div>
+
+                <!-- Text Input -->
+                <div class="text-input-container">
+                    <input type="text" id="textInput" placeholder="Type a question..." autocomplete="off">
+                    <button class="btn-send" id="sendButton">→</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/pcm-recorder-processor.js"></script>
+    <script src="/static/js/pcm-player-processor.js"></script>
+    <script src="/static/js/audio-recorder.js"></script>
+    <script src="/static/js/audio-player.js"></script>
+    <script src="/static/js/app.js?v=3"></script>
+</body>
+
+</html>

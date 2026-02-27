@@ -1,0 +1,212 @@
+{
+    "source": "EWG (Environmental Working Group) Shopper's Guide + FDA Produce Safety Guidelines",
+    "last_updated": "2026-02-25",
+    "produce": {
+        "leafy_greens": {
+            "items": [
+                "lettuce",
+                "spinach",
+                "kale",
+                "arugula",
+                "mixed greens",
+                "romaine",
+                "spring mix",
+                "cabbage",
+                "chard",
+                "collard greens",
+                "bok choy"
+            ],
+            "wash_method": "Separate leaves and soak in cold water for 1-2 minutes, then rinse each leaf under running water. For pre-washed bags: still rinse — pre-washed does not mean pesticide-free.",
+            "why": "Leafy greens are the #1 source of foodborne illness in the US. E. coli and Listeria outbreaks are frequently traced to bagged salad greens. Soil and sand trap bacteria between leaves.",
+            "pesticide_note": "Spinach and kale are on the Dirty Dozen — consider a baking soda soak (1 tsp per 2 cups water, 12-15 minutes) for extra pesticide removal.",
+            "tips": "Use a salad spinner to dry — wet leaves won't crisp up and dilute your dressing. Remove outer leaves of head lettuce where pesticide concentration is highest."
+        },
+        "berries": {
+            "items": [
+                "strawberries",
+                "blueberries",
+                "raspberries",
+                "blackberries",
+                "grapes",
+                "cherries",
+                "cranberries"
+            ],
+            "wash_method": "Vinegar bath: 1 part white vinegar to 3 parts cold water. Soak for 5 minutes, then rinse gently under cold water. Pat dry with paper towels or let air-dry on a clean towel.",
+            "why": "Berries have delicate, porous skin that absorbs chemicals easily. Vinegar kills mold spores (extending shelf life by days) and removes significantly more pesticide residue than water alone.",
+            "pesticide_note": "Strawberries are #1 on the Dirty Dozen every year. Grapes and cherries are also high-residue. Worth the vinegar soak.",
+            "tips": "Don't wash berries until you're ready to eat them — moisture accelerates mold. Raspberries are the most fragile; be very gentle."
+        },
+        "thick_skinned_fruit": {
+            "items": [
+                "cantaloupe",
+                "watermelon",
+                "honeydew",
+                "avocado",
+                "pineapple",
+                "mango",
+                "papaya",
+                "banana",
+                "orange",
+                "grapefruit",
+                "lemon",
+                "lime",
+                "kiwi",
+                "coconut"
+            ],
+            "wash_method": "Scrub the OUTSIDE under running water with a clean produce brush BEFORE cutting or peeling. Even if you don't eat the skin.",
+            "why": "When you cut through unwashed skin, your knife drags surface bacteria (Salmonella, Listeria) and pesticide residue directly into the flesh you eat. This is one of the most commonly skipped food safety steps.",
+            "pesticide_note": "Avocados, pineapple, and papaya are on the Clean Fifteen — low pesticide residue. But you still need to wash for bacteria, especially cantaloupe (linked to multiple Listeria outbreaks).",
+            "tips": "Cantaloupes have rough, netted skin that traps bacteria in the crevices. Scrub them thoroughly. This is not optional."
+        },
+        "root_vegetables": {
+            "items": [
+                "potatoes",
+                "carrots",
+                "beets",
+                "turnips",
+                "radishes",
+                "sweet potatoes",
+                "ginger",
+                "turmeric",
+                "parsnips",
+                "rutabaga",
+                "jicama"
+            ],
+            "wash_method": "Scrub under running water with a vegetable brush. Peel if desired, but scrubbing is sufficient for most root vegetables.",
+            "why": "Root vegetables grow in soil, which contains bacteria and can carry pesticide residue. Dirt in crevices can harbor pathogens.",
+            "pesticide_note": "Potatoes are on the Dirty Dozen. Sweet potatoes are on the Clean Fifteen. If eating potato skin, consider a baking soda soak.",
+            "tips": "Don't peel carrots — most nutrients are in or just under the skin. A good scrub is enough. For potatoes you plan to eat with skin, extra attention to cleaning."
+        },
+        "mushrooms": {
+            "items": [
+                "button mushrooms",
+                "cremini",
+                "portobello",
+                "shiitake",
+                "oyster mushrooms",
+                "enoki",
+                "chanterelle",
+                "maitake",
+                "lion's mane",
+                "mushrooms"
+            ],
+            "wash_method": "Quick rinse under running water and immediately pat dry, OR wipe with a damp paper towel. NEVER soak.",
+            "why": "Mushrooms are like sponges — they absorb water rapidly, which ruins their texture and prevents proper browning when cooked. A quick rinse removes surface dirt without waterlogging.",
+            "pesticide_note": "Most commercially grown mushrooms are indoor-grown with minimal pesticide use. Not a major pesticide concern.",
+            "tips": "The old 'never wash mushrooms' myth is partially true — just don't SOAK them. A quick rinse is fine and won't affect cooking. Dry thoroughly before sautéing for a good sear."
+        },
+        "apples_stone_fruit": {
+            "items": [
+                "apples",
+                "peaches",
+                "nectarines",
+                "plums",
+                "pears",
+                "apricots"
+            ],
+            "wash_method": "Baking soda soak: 1 teaspoon baking soda per 2 cups of water. Soak for 12-15 minutes, then rinse under running water. This removes up to 96% of pesticide residue.",
+            "why": "Research from the University of Massachusetts found that a baking soda soak is significantly more effective than water or bleach at removing pesticide residue from apple skins. These fruits are heavily sprayed.",
+            "pesticide_note": "Apples, peaches, nectarines, and pears are ALL on the Dirty Dozen. The baking soda method is strongly recommended.",
+            "tips": "If short on time, at minimum rub the fruit vigorously under running water for 30 seconds. The friction helps dislodge residue."
+        },
+        "peppers_tomatoes": {
+            "items": [
+                "bell peppers",
+                "tomatoes",
+                "hot peppers",
+                "jalapeños",
+                "cherry tomatoes",
+                "grape tomatoes",
+                "poblano",
+                "serrano"
+            ],
+            "wash_method": "Rinse under running water while rubbing the surface. For waxy peppers, a gentle scrub with a soft brush. Cherry/grape tomatoes: colander rinse with agitation.",
+            "why": "Peppers and tomatoes have smooth skin that can hold wax coatings and pesticide residue. Hot peppers: wash before handling to remove surface contaminants, then wash your hands after cutting.",
+            "pesticide_note": "Bell peppers and hot peppers are on the Dirty Dozen. Tomatoes are borderline. Worth extra washing attention.",
+            "tips": "After cutting hot peppers, wash hands with soap immediately. Do NOT touch your eyes. Capsaicin is oil-based — water alone won't remove it."
+        },
+        "herbs": {
+            "items": [
+                "basil",
+                "cilantro",
+                "parsley",
+                "mint",
+                "dill",
+                "rosemary",
+                "thyme",
+                "oregano",
+                "chives",
+                "sage",
+                "tarragon"
+            ],
+            "wash_method": "Submerge in a bowl of cold water and swish gently. Lift out (don't pour through colander — sand sinks to bottom). Repeat if water is dirty. Spin dry or pat with paper towels.",
+            "why": "Fresh herbs often carry sand, soil, and small insects between leaves. Submerging and lifting (rather than pouring) leaves the grit behind.",
+            "pesticide_note": "Herbs are not consistently tracked on Dirty Dozen lists, but cilantro has shown up. Organic is worth it for herbs you eat raw.",
+            "tips": "Wash herbs right before use. Store unwashed wrapped in damp paper towel in a bag in the fridge for longest life."
+        },
+        "cruciferous": {
+            "items": [
+                "broccoli",
+                "cauliflower",
+                "brussels sprouts"
+            ],
+            "wash_method": "Cut into florets first, then soak in cold salted water for 5-10 minutes. Rinse under running water. The saltwater drives out insects hiding in the florets.",
+            "why": "Broccoli and cauliflower florets create perfect hiding spots for small insects, worms, and trapped dirt that you can't reach by surface rinsing alone.",
+            "pesticide_note": "Broccoli is usually low-pesticide. Not a major Dirty Dozen concern.",
+            "tips": "Don't skip the salt soak for broccoli — you'd be surprised what comes out."
+        },
+        "corn": {
+            "items": [
+                "corn",
+                "corn on the cob",
+                "sweet corn"
+            ],
+            "wash_method": "Remove husk and silk, then rinse under running water. Rub to remove remaining silk strands.",
+            "why": "The husk protects the kernels, so corn is naturally lower-pesticide. Main concern is removing silk strands.",
+            "pesticide_note": "Sweet corn is on the Clean Fifteen — one of the lowest-pesticide produce items.",
+            "tips": "Fresh corn is best used the day you buy it — sugars convert to starch quickly after picking."
+        }
+    },
+    "dirty_dozen": [
+        "strawberries",
+        "spinach",
+        "kale",
+        "grapes",
+        "peaches",
+        "pears",
+        "nectarines",
+        "apples",
+        "bell peppers",
+        "cherries",
+        "blueberries",
+        "green beans"
+    ],
+    "clean_fifteen": [
+        "avocados",
+        "sweet corn",
+        "pineapple",
+        "onions",
+        "papaya",
+        "sweet peas (frozen)",
+        "asparagus",
+        "honeydew melon",
+        "kiwi",
+        "cabbage",
+        "mushrooms",
+        "mangoes",
+        "sweet potatoes",
+        "watermelon",
+        "carrots"
+    ],
+    "general_produce": {
+        "wash_method": "Rinse under cold running water while rubbing the surface for 20-30 seconds. No soap needed — soap can leave residue and isn't approved for food use.",
+        "why": "Running water plus friction is effective at removing surface dirt, bacteria, and some pesticide residue from most produce.",
+        "key_rules": [
+            "Always wash BEFORE cutting or peeling — not after",
+            "Never use soap, bleach, or commercial produce washes — plain water is recommended by FDA",
+            "Baking soda soak is the most effective method for pesticide removal (research-backed)",
+            "Dry produce with clean cloth or paper towel to further reduce bacteria",
+            "Cut away damaged or bruised areas where bacteria can thrive"
+        ]
+    }
+}

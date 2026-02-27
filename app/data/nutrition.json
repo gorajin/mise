@@ -1,0 +1,257 @@
+{
+    "source": "USDA FoodData Central — approximate per-serving values",
+    "last_updated": "2026-02-26",
+    "items": {
+        "chicken breast": {
+            "serving": "6 oz (170g) cooked",
+            "calories": 280,
+            "protein_g": 53,
+            "carbs_g": 0,
+            "fat_g": 6,
+            "fiber_g": 0,
+            "healthier_swap": null,
+            "note": "Lean protein king. Skin-on adds ~70 cal and 8g fat per serving."
+        },
+        "chicken thigh": {
+            "serving": "1 thigh (115g) cooked, skin-on",
+            "calories": 230,
+            "protein_g": 28,
+            "carbs_g": 0,
+            "fat_g": 13,
+            "fiber_g": 0,
+            "healthier_swap": "Remove skin to save ~50 cal and 6g fat",
+            "note": "More flavorful than breast due to higher fat content."
+        },
+        "ground beef 80/20": {
+            "serving": "4 oz (113g) cooked",
+            "calories": 290,
+            "protein_g": 28,
+            "carbs_g": 0,
+            "fat_g": 19,
+            "fiber_g": 0,
+            "healthier_swap": "Use 93/7 lean ground (170 cal, 24g protein, 8g fat) or ground turkey",
+            "note": "80/20 is best for burgers (juicy). 93/7 can be dry — add a little olive oil."
+        },
+        "salmon": {
+            "serving": "6 oz (170g) fillet cooked",
+            "calories": 350,
+            "protein_g": 40,
+            "carbs_g": 0,
+            "fat_g": 20,
+            "fiber_g": 0,
+            "healthier_swap": null,
+            "note": "High in omega-3. The fat is the good kind — don't avoid it."
+        },
+        "white rice": {
+            "serving": "1 cup cooked (186g)",
+            "calories": 240,
+            "protein_g": 4,
+            "carbs_g": 53,
+            "fat_g": 0,
+            "fiber_g": 1,
+            "healthier_swap": "Cauliflower rice (25 cal/cup) or brown rice (215 cal, 5g fiber)",
+            "note": "High glycemic. If cutting carbs, halve the portion and bulk up with veggies."
+        },
+        "brown rice": {
+            "serving": "1 cup cooked (195g)",
+            "calories": 215,
+            "protein_g": 5,
+            "carbs_g": 45,
+            "fat_g": 2,
+            "fiber_g": 5,
+            "healthier_swap": null,
+            "note": "Only slightly fewer calories than white, but way more fiber and nutrients."
+        },
+        "pasta": {
+            "serving": "2 oz dry / 1 cup cooked (140g)",
+            "calories": 220,
+            "protein_g": 8,
+            "carbs_g": 43,
+            "fat_g": 1,
+            "fiber_g": 3,
+            "healthier_swap": "Legume pasta (190 cal, 14g protein, 11g fiber) or zucchini noodles (30 cal)",
+            "note": "Portion is key — restaurant portions are usually 2-3x a single serving."
+        },
+        "olive oil": {
+            "serving": "1 tablespoon (14g)",
+            "calories": 120,
+            "protein_g": 0,
+            "carbs_g": 0,
+            "fat_g": 14,
+            "fiber_g": 0,
+            "healthier_swap": "Avocado oil spray for cooking (fewer calories per coverage)",
+            "note": "Healthy fat. Don't fear it, but measure it — it adds up fast."
+        },
+        "butter": {
+            "serving": "1 tablespoon (14g)",
+            "calories": 100,
+            "protein_g": 0,
+            "carbs_g": 0,
+            "fat_g": 11,
+            "fiber_g": 0,
+            "healthier_swap": "For cooking: olive oil or avocado oil. For baking: keep butter (it matters for texture).",
+            "note": "In baking, butter is irreplaceable for flaky texture and flavor."
+        },
+        "egg": {
+            "serving": "1 large egg (50g)",
+            "calories": 70,
+            "protein_g": 6,
+            "carbs_g": 0,
+            "fat_g": 5,
+            "fiber_g": 0,
+            "healthier_swap": "Egg whites only (17 cal, 4g protein, 0 fat) — but you lose the nutrients in the yolk",
+            "note": "The yolk has the vitamins. Whole eggs are worth it unless you're strictly cutting calories."
+        },
+        "avocado": {
+            "serving": "1/2 avocado (100g)",
+            "calories": 160,
+            "protein_g": 2,
+            "carbs_g": 9,
+            "fat_g": 15,
+            "fiber_g": 7,
+            "healthier_swap": null,
+            "note": "High calorie for a fruit, but packed with fiber, potassium, and healthy monounsaturated fat."
+        },
+        "greek yogurt": {
+            "serving": "1 cup (245g) plain nonfat",
+            "calories": 130,
+            "protein_g": 22,
+            "carbs_g": 9,
+            "fat_g": 0,
+            "fiber_g": 0,
+            "healthier_swap": null,
+            "note": "Excellent mayo/sour cream substitute. Full-fat version is creamier (190 cal)."
+        },
+        "mayonnaise": {
+            "serving": "1 tablespoon (15g)",
+            "calories": 100,
+            "protein_g": 0,
+            "carbs_g": 0,
+            "fat_g": 11,
+            "fiber_g": 0,
+            "healthier_swap": "Greek yogurt + whole grain mustard (25 cal/tbsp, 3g protein, creamy, tangy)",
+            "note": "Mostly fat. The Greek yogurt swap works great in chicken salad, pasta salad, dressings."
+        },
+        "sweet potato": {
+            "serving": "1 medium (130g) baked",
+            "calories": 115,
+            "protein_g": 2,
+            "carbs_g": 27,
+            "fat_g": 0,
+            "fiber_g": 4,
+            "healthier_swap": null,
+            "note": "Lower glycemic than white potatoes, more fiber, more vitamin A. Great complex carb."
+        },
+        "potato": {
+            "serving": "1 medium (173g) baked",
+            "calories": 160,
+            "protein_g": 4,
+            "carbs_g": 37,
+            "fat_g": 0,
+            "fiber_g": 4,
+            "healthier_swap": "Sweet potato for lower glycemic index, or cauliflower mash (40 cal/cup)",
+            "note": "It's what you PUT on the potato that matters. Butter + sour cream can double the calories."
+        },
+        "broccoli": {
+            "serving": "1 cup chopped (91g)",
+            "calories": 31,
+            "protein_g": 3,
+            "carbs_g": 6,
+            "fat_g": 0,
+            "fiber_g": 2,
+            "healthier_swap": null,
+            "note": "One of the most nutrient-dense foods. Don't overcook — steamed or roasted until bright green."
+        }
+    },
+    "categories": {
+        "leafy_greens": {
+            "keywords": [
+                "lettuce",
+                "spinach",
+                "kale",
+                "arugula",
+                "salad"
+            ],
+            "estimate": {
+                "serving": "2 cups raw",
+                "calories": 15,
+                "protein_g": 1,
+                "carbs_g": 2,
+                "fat_g": 0,
+                "fiber_g": 1,
+                "note": "Almost zero calorie. It's the dressing that counts."
+            }
+        },
+        "nuts": {
+            "keywords": [
+                "almonds",
+                "walnuts",
+                "cashews",
+                "pecans",
+                "peanuts",
+                "pistachios"
+            ],
+            "estimate": {
+                "serving": "1 oz (28g) — about a small handful",
+                "calories": 170,
+                "protein_g": 6,
+                "carbs_g": 6,
+                "fat_g": 15,
+                "fiber_g": 3,
+                "note": "Calorie-dense but satiating. Measure them — a 'handful' is often 2-3 servings."
+            }
+        },
+        "cheese": {
+            "keywords": [
+                "cheddar",
+                "mozzarella",
+                "parmesan",
+                "feta",
+                "gouda",
+                "swiss"
+            ],
+            "estimate": {
+                "serving": "1 oz (28g) — about a 1-inch cube",
+                "calories": 110,
+                "protein_g": 7,
+                "carbs_g": 1,
+                "fat_g": 9,
+                "fiber_g": 0,
+                "healthier_swap": "Nutritional yeast (20 cal/tbsp, cheesy flavor) or reduced-fat versions",
+                "note": "Hard cheeses pack more flavor per gram — use less for the same impact."
+            }
+        }
+    },
+    "healthy_swaps": {
+        "mayo → greek_yogurt_mustard": {
+            "saves": "75 cal per tablespoon",
+            "gains": "3g protein",
+            "best_for": "Chicken salad, pasta salad, dressings, dips"
+        },
+        "white_rice → cauliflower_rice": {
+            "saves": "215 cal per cup",
+            "gains": "3g fiber",
+            "best_for": "Stir-fry, burrito bowls, fried 'rice'"
+        },
+        "pasta → legume_pasta": {
+            "saves": "30 cal per serving",
+            "gains": "6g protein, 8g fiber",
+            "best_for": "Any pasta dish — texture is slightly different but close"
+        },
+        "sour_cream → greek_yogurt": {
+            "saves": "40 cal per 2 tablespoons",
+            "gains": "5g protein",
+            "best_for": "Tacos, baked potatoes, dips"
+        },
+        "butter_cooking → avocado_oil_spray": {
+            "saves": "~80 cal per tablespoon",
+            "gains": "Higher smoke point",
+            "best_for": "Pan-frying, sautéing. NOT for baking."
+        },
+        "sugar → reduce_25_percent": {
+            "saves": "50-100 cal per recipe",
+            "gains": "Less sweetness, often more balanced flavor",
+            "best_for": "Most baked goods — recipes usually over-sweeten"
+        }
+    }
+}

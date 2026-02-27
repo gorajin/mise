@@ -1,0 +1,191 @@
+{
+    "source": "USDA Food Safety and Inspection Service (FSIS) - Safe Minimum Internal Temperatures",
+    "last_updated": "2026-02-25",
+    "items": {
+        "chicken breast": {
+            "safe_internal_temp_f": 165,
+            "safe_internal_temp_c": 74,
+            "rest_time_minutes": 3,
+            "visual_cues": "Juices run clear, no pink at the bone, firm to the touch",
+            "danger_signs": "Pink or red juices, rubbery texture, bloody near bone",
+            "tips": "Use a meat thermometer in the thickest part. Don't rely on color alone."
+        },
+        "chicken thigh": {
+            "safe_internal_temp_f": 165,
+            "safe_internal_temp_c": 74,
+            "rest_time_minutes": 3,
+            "visual_cues": "Meat pulls easily from bone, juices run clear",
+            "danger_signs": "Bloody near the bone, raw appearance",
+            "tips": "Thighs are more forgiving than breasts. Cook to 175°F for best texture."
+        },
+        "ground beef": {
+            "safe_internal_temp_f": 160,
+            "safe_internal_temp_c": 71,
+            "rest_time_minutes": 0,
+            "visual_cues": "No pink remaining, brown throughout",
+            "danger_signs": "Pink center, soft and mushy texture",
+            "tips": "Ground meat must be cooked through — no medium-rare burgers with store-bought ground beef."
+        },
+        "beef steak": {
+            "safe_internal_temp_f": 145,
+            "safe_internal_temp_c": 63,
+            "rest_time_minutes": 3,
+            "visual_cues": "Firm with slight give for medium-rare, brown crust",
+            "danger_signs": "Gray exterior (overcooked), completely soft (raw inside)",
+            "tips": "Rest is essential — juices redistribute. Touch test: press your palm at the base of your thumb.",
+            "doneness_guide": {
+                "rare": {
+                    "temp_f": 125,
+                    "description": "Cool red center"
+                },
+                "medium_rare": {
+                    "temp_f": 135,
+                    "description": "Warm red center"
+                },
+                "medium": {
+                    "temp_f": 145,
+                    "description": "Warm pink center"
+                },
+                "medium_well": {
+                    "temp_f": 150,
+                    "description": "Slight pink center"
+                },
+                "well_done": {
+                    "temp_f": 160,
+                    "description": "No pink, fully cooked"
+                }
+            }
+        },
+        "pork chop": {
+            "safe_internal_temp_f": 145,
+            "safe_internal_temp_c": 63,
+            "rest_time_minutes": 3,
+            "visual_cues": "Slight pink in center is safe at 145°F, firm exterior",
+            "danger_signs": "Translucent or raw-looking center",
+            "tips": "Modern pork is safe at 145°F with rest. Overcooking makes it dry."
+        },
+        "pork tenderloin": {
+            "safe_internal_temp_f": 145,
+            "safe_internal_temp_c": 63,
+            "rest_time_minutes": 3,
+            "visual_cues": "Light pink center, juicy when sliced",
+            "danger_signs": "Raw center or completely gray (overcooked)",
+            "tips": "Sear first at high heat, finish in oven at 400°F."
+        },
+        "salmon": {
+            "safe_internal_temp_f": 145,
+            "safe_internal_temp_c": 63,
+            "rest_time_minutes": 0,
+            "visual_cues": "Flakes easily with a fork, translucent to opaque transition",
+            "danger_signs": "Completely raw center (unless sushi-grade), dry and flaky (overcooked)",
+            "tips": "Many chefs serve at 120-125°F for a silky center. Use sushi-grade for anything under 145°F."
+        },
+        "shrimp": {
+            "safe_internal_temp_f": 145,
+            "safe_internal_temp_c": 63,
+            "rest_time_minutes": 0,
+            "visual_cues": "Pink and opaque, C-shape curl",
+            "danger_signs": "Translucent/gray (undercooked), tight O-shape curl (overcooked)",
+            "tips": "Shrimp cook in 2-3 minutes. When they form a C, they're done. O means overdone."
+        },
+        "eggs": {
+            "safe_internal_temp_f": 160,
+            "safe_internal_temp_c": 71,
+            "rest_time_minutes": 0,
+            "visual_cues": "Whites fully set, yolk thickened (for fully cooked)",
+            "danger_signs": "Runny whites (undercooked for serving to vulnerable populations)",
+            "tips": "For scrambled eggs, cook until no liquid remains. For fried, cook until whites are set."
+        },
+        "rice": {
+            "safe_internal_temp_f": 165,
+            "safe_internal_temp_c": 74,
+            "rest_time_minutes": 0,
+            "visual_cues": "All water absorbed, grains tender",
+            "danger_signs": "Crunchy uncooked center, mushy and clumpy",
+            "tips": "Leftover rice is a common source of food poisoning (Bacillus cereus). Refrigerate within 1 hour."
+        },
+        "pasta": {
+            "safe_internal_temp_f": null,
+            "safe_internal_temp_c": null,
+            "rest_time_minutes": 0,
+            "visual_cues": "Al dente — tender but with slight bite when tasted",
+            "danger_signs": "Hard center (undercooked), mushy and falling apart (overcooked)",
+            "tips": "Test often starting 2 minutes before package time. Reserve pasta water — it's liquid gold for sauces."
+        }
+    },
+    "categories": {
+        "poultry": {
+            "keywords": [
+                "chicken",
+                "turkey",
+                "duck",
+                "poultry",
+                "cornish hen"
+            ],
+            "guidelines": {
+                "safe_internal_temp_f": 165,
+                "safe_internal_temp_c": 74,
+                "rest_time_minutes": 3,
+                "general_advice": "All poultry must reach 165°F. No exceptions. Check the thickest part."
+            }
+        },
+        "whole_cuts_beef_pork_lamb": {
+            "keywords": [
+                "steak",
+                "roast",
+                "chop",
+                "loin",
+                "tenderloin",
+                "lamb",
+                "veal"
+            ],
+            "guidelines": {
+                "safe_internal_temp_f": 145,
+                "safe_internal_temp_c": 63,
+                "rest_time_minutes": 3,
+                "general_advice": "Whole cuts are safe at 145°F with 3-minute rest. Surface bacteria are killed by searing."
+            }
+        },
+        "ground_meats": {
+            "keywords": [
+                "ground",
+                "burger",
+                "meatball",
+                "meatloaf",
+                "sausage"
+            ],
+            "guidelines": {
+                "safe_internal_temp_f": 160,
+                "safe_internal_temp_c": 71,
+                "rest_time_minutes": 0,
+                "general_advice": "Ground meats must be cooked through — bacteria gets mixed throughout during grinding."
+            }
+        },
+        "seafood": {
+            "keywords": [
+                "fish",
+                "shrimp",
+                "lobster",
+                "crab",
+                "scallop",
+                "tuna",
+                "cod",
+                "tilapia"
+            ],
+            "guidelines": {
+                "safe_internal_temp_f": 145,
+                "safe_internal_temp_c": 63,
+                "rest_time_minutes": 0,
+                "general_advice": "Fish is done when it flakes easily and reaches 145°F. Shellfish should be opaque."
+            }
+        }
+    },
+    "general": {
+        "danger_zone": "40°F-140°F (4°C-60°C). Food should not sit in this range for more than 2 hours (1 hour if above 90°F).",
+        "cross_contamination": "Never use the same cutting board for raw meat and ready-to-eat food without washing. Wash hands after handling raw meat.",
+        "hand_washing": "Wash hands with soap and warm water for 20 seconds before and after handling food.",
+        "storage": "Refrigerate leftovers within 2 hours. Use within 3-4 days or freeze.",
+        "reheating": "Reheat leftovers to 165°F. Bring sauces and soups to a rolling boil.",
+        "thawing": "Thaw in the refrigerator, cold water, or microwave — NEVER on the counter at room temperature."
+    }
+}
