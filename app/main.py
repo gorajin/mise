@@ -85,16 +85,20 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
         ),
         output_audio_transcription=types.AudioTranscriptionConfig(),
         input_audio_transcription=types.AudioTranscriptionConfig(),
-        # Note: proactive_audio and enable_affective_dialog are not supported
-        # on gemini-2.0-flash-exp-image-generation. Proactive behavior is
+        # Note: proactive_audio and enable_affective_dialog may not be supported
+        # on all models. Proactive behavior is
         # handled by the observation_loop task below.
     )
 
     # Initialize the live request queue
     live_request_queue = LiveRequestQueue()
 
+    frame_count = 0
+    audio_chunk_count = 0
+
     async def upstream_task():
         """Receive WebSocket messages and forward to LiveRequestQueue."""
+        nonlocal frame_count, audio_chunk_count
         try:
             while True:
                 message = await websocket.receive()
@@ -108,6 +112,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                     live_request_queue.send_realtime(
                         types.Blob(data=audio_data, mime_type="audio/pcm;rate=16000")
                     )
+                    audio_chunk_count += 1
+                    if audio_chunk_count % 50 == 0:
+                        print(f"[MISE] Audio chunks sent: {audio_chunk_count}")
 
                 # Handle text/JSON messages (including video frames)
                 elif "text" in message and message["text"]:
@@ -124,6 +131,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                     mime_type="image/jpeg",
                                 )
                             )
+                            frame_count += 1
+                            print(f"[MISE] Video frame #{frame_count}: {len(frame_data)} bytes")
 
                         elif msg_type == "text":
                             # Text message from user

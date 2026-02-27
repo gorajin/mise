@@ -3,10 +3,14 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>MISE — Live Kitchen Intelligence</title>
     <meta name="description"
         content="Your AI sous chef — a hands-free dinner coordinator with real-time camera vision.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0d0d0d">
+    <link rel="manifest" href="/static/manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -16,7 +20,20 @@
 </head>
 
 <body>
-    <div class="app-container">
+    <!-- Loading / Splash Screen -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-content">
+            <div class="splash-logo">🔥</div>
+            <h1 class="splash-title">MISE</h1>
+            <p class="splash-tagline">Live Kitchen Intelligence</p>
+            <div class="splash-loader">
+                <div class="loader-bar"></div>
+            </div>
+            <p class="splash-status" id="splashStatus">Initializing...</p>
+        </div>
+    </div>
+
+    <div class="app-container" id="appContainer">
         <!-- Header -->
         <header class="app-header">
             <div class="logo">
@@ -35,11 +52,17 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Camera Panel -->
+            <!-- Camera Panel (Full-bleed on mobile) -->
             <section class="camera-panel">
                 <div class="camera-container" id="cameraContainer">
                     <video id="cameraFeed" autoplay playsinline muted></video>
                     <canvas id="captureCanvas" style="display: none;"></canvas>
+
+                    <!-- Observation Indicator -->
+                    <div class="observation-badge" id="observationBadge">
+                        <span class="obs-eye">👁️</span>
+                        <span class="obs-text">Watching</span>
+                    </div>
 
                     <!-- Safety Alert Overlay -->
                     <div class="safety-overlay" id="safetyOverlay">
@@ -47,6 +70,16 @@
                             <span class="safety-icon">⚠️</span>
                             <p id="safetyMessage"></p>
                         </div>
+                    </div>
+
+                    <!-- Timer Widget -->
+                    <div class="timer-widget" id="timerWidget">
+                        <div class="timer-display" id="timerDisplay">
+                            <span class="timer-icon">⏱️</span>
+                            <span class="timer-time" id="timerTime">00:00</span>
+                            <span class="timer-label" id="timerLabel"></span>
+                        </div>
+                        <button class="timer-dismiss" id="timerDismiss">✕</button>
                     </div>
 
                     <!-- Camera Controls Overlay -->
@@ -88,27 +121,39 @@
                     </div>
                 </div>
 
-                <!-- Audio Indicator -->
+                <!-- Audio Indicator Bar -->
                 <div class="audio-indicator" id="audioIndicator">
-                    <div class="mic-status">
-                        <span class="mic-icon" id="micIcon">🎙️</span>
+                    <div class="audio-left">
+                        <button class="btn-mute" id="muteButton" title="Mute microphone">
+                            <span class="mute-icon" id="muteIcon">🎙️</span>
+                        </button>
+                        <div class="mic-level-container">
+                            <div class="mic-level-bar" id="micLevelBar"></div>
+                        </div>
                         <span class="mic-label" id="micLabel">Tap Start to begin</span>
                     </div>
-                    <div class="agent-speaking" id="agentSpeaking">
-                        <div class="wave-container">
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
+                    <div class="audio-right">
+                        <div class="agent-speaking" id="agentSpeaking">
+                            <div class="wave-container">
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                            </div>
+                            <span>MISE is speaking</span>
                         </div>
-                        <span>MISE is speaking...</span>
                     </div>
                 </div>
             </section>
 
-            <!-- Transcript Panel -->
-            <section class="transcript-panel">
+            <!-- Transcript Panel — Desktop side panel / Mobile bottom sheet -->
+            <section class="transcript-panel" id="transcriptPanel">
+                <!-- Bottom-sheet handle (mobile only) -->
+                <div class="sheet-handle" id="sheetHandle">
+                    <div class="handle-bar"></div>
+                </div>
+
                 <div class="transcript-header">
                     <h2>Live Transcript</h2>
                     <button class="btn-icon" id="clearTranscript" title="Clear">✕</button>
@@ -140,13 +185,18 @@
                 </div>
             </section>
         </main>
+
+        <!-- Floating "What's Next?" button (mobile) -->
+        <button class="fab-next" id="fabNext" data-text="What should I do next?">
+            <span>👨‍🍳</span> Next step?
+        </button>
     </div>
 
     <script src="/static/js/pcm-recorder-processor.js"></script>
     <script src="/static/js/pcm-player-processor.js"></script>
     <script src="/static/js/audio-recorder.js"></script>
     <script src="/static/js/audio-player.js"></script>
-    <script src="/static/js/app.js?v=3"></script>
+    <script src="/static/js/app.js?v=4"></script>
 </body>
 
 </html>

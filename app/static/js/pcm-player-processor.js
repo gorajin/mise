@@ -12,8 +12,15 @@ class PCMPlayerProcessor extends AudioWorkletProcessor {
         this.currentIndex = 0;
 
         this.port.onmessage = (event) => {
-            // Receive Float32Array audio data
-            this.queue.push(event.data);
+            if (event.data && event.data.type === 'flush') {
+                // Barge-in: clear all queued audio immediately
+                this.queue = [];
+                this.currentBuffer = null;
+                this.currentIndex = 0;
+            } else {
+                // Receive Float32Array audio data
+                this.queue.push(event.data);
+            }
         };
     }
 
