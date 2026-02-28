@@ -9,6 +9,8 @@ from app.mise_agent.tools import (
     get_food_safety_data,
     get_produce_safety_data,
     get_nutrition_estimate,
+    set_observation_interval,
+    analyze_and_recreate_recipe,
     _stem,
     _food_match,
 )
@@ -147,3 +149,64 @@ class TestNutrition:
     def test_returns_dict(self):
         result = get_nutrition_estimate("olive oil")
         assert isinstance(result, dict)
+
+
+# ═══════════════════════════════════════════════════════
+#  set_observation_interval
+# ═══════════════════════════════════════════════════════
+
+
+class TestSetObservationInterval:
+    def test_returns_dict(self):
+        result = set_observation_interval(5, "monitoring high heat")
+        assert isinstance(result, dict)
+
+    def test_returns_expected_keys(self):
+        result = set_observation_interval(30, "baking mode")
+        assert result["action"] == "interval_updated"
+        assert result["new_interval_seconds"] == 30
+        assert result["reason"] == "baking mode"
+
+    def test_short_interval(self):
+        result = set_observation_interval(5, "searing")
+        assert result["new_interval_seconds"] == 5
+
+    def test_long_interval(self):
+        result = set_observation_interval(60, "oven roasting")
+        assert result["new_interval_seconds"] == 60
+
+
+# ═══════════════════════════════════════════════════════
+#  analyze_and_recreate_recipe
+# ═══════════════════════════════════════════════════════
+
+
+class TestAnalyzeAndRecreateRecipe:
+    def test_returns_dict(self):
+        result = analyze_and_recreate_recipe("Pasta", ["noodles", "sauce"], ["boil", "mix"])
+        assert isinstance(result, dict)
+
+    def test_returns_expected_keys(self):
+        result = analyze_and_recreate_recipe(
+            "Beef Stew", ["beef", "carrots", "potatoes"], ["brown beef", "add veggies", "simmer"]
+        )
+        assert result["action"] == "recipe_reverse_engineered"
+        assert result["dish"] == "Beef Stew"
+        assert result["grocery_list"] == ["beef", "carrots", "potatoes"]
+        assert len(result["reconstructed_steps"]) == 3
+        assert "ui_status" in result
+
+    def test_empty_ingredients(self):
+        result = analyze_and_recreate_recipe("Toast", [], ["toast bread"])
+        assert result["grocery_list"] == []
+        assert result["dish"] == "Toast"
+
+    def test_single_step(self):
+        result = analyze_and_recreate_recipe("Boiled Egg", ["egg"], ["boil for 10 minutes"])
+        assert len(result["reconstructed_steps"]) == 1
+
+    def test_many_ingredients(self):
+        ingredients = ["flour", "sugar", "butter", "eggs", "vanilla", "milk", "baking powder"]
+        result = analyze_and_recreate_recipe("Cake", ingredients, ["mix dry", "mix wet", "combine", "bake"])
+        assert len(result["grocery_list"]) == 7
+

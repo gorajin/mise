@@ -1,7 +1,7 @@
 # MISE — Comprehensive Agent Handoff
 
-> **Last updated:** 2026-02-27 18:30 PST  
-> **Status:** All features complete. Phase E (demo video + submit) remaining.  
+> **Last updated:** 2026-02-27 22:23 PST  
+> **Status:** Phase E code complete (context-aware culinary AI). Demo video + submit remaining.  
 > **Live URL:** https://mise-965205106736.us-central1.run.app  
 > **GitHub:** https://github.com/gorajin/mise  
 > **Cloud Run:** Project `gen-lang-client-0991814371`, region `us-central1`
@@ -102,6 +102,21 @@ Complete frontend visual redesign to make the app look production-grade for hack
 - **Cache bust:** `app.js?v=5` → `app.js?v=7`
 - **All 25 tests pass** — zero backend changes
 
+### Session 8 — Feb 27 22:23 PST — Phase E: Context-Aware Culinary AI
+**Files modified:** `app.js`, `tools.py`, `agent.py`, `test_tools.py`, `index.html`
+
+Implemented the full Phase E spec from the director's handoff — surgical injection of UX improvements, 2 new backend tools, and an enhanced system prompt. No rewrites of core WebSocket, AudioWorklet, or UI architecture.
+
+- **Screen Wake Lock:** `navigator.wakeLock` API keeps the screen alive during long cooks. Auto re-acquires on `visibilitychange` (e.g., user minimizes and returns). Graceful fallback on unsupported browsers.
+- **Sustained Barge-In:** Replaced instant mic-threshold trigger with a 6-frame sustained noise counter (~150ms). Transient kitchen sounds (dropped pans, clanking pots) no longer kill the agent mid-sentence.
+- **Seamless Audio Ducking:** Playback audio now routes through a `GainNode`. On barge-in, the agent's voice fades out over 50ms via `exponentialRampToValueAtTime(0.001)` instead of an abrupt buffer flush. Gain resets to 1.0 for the next response.
+- **Dynamic Camera Polling:** New `set_observation_interval` tool lets the agent control its own camera capture rate. Frontend intercepts the tool call and adjusts the `setInterval` dynamically (e.g., 5s for searing, 60s for baking).
+- **Recipe Reverse-Engineering Tool:** New `analyze_and_recreate_recipe` tool for TV co-watching mode. Agent can extract dish name, full grocery list, and chronological steps. Results logged to the Activity Log with ingredient counts and grocery preview.
+- **Advanced System Prompt:** Appended the full "ADVANCED CULINARY SCIENTIST & PROACTIVE CO-PILOT PROTOCOLS" block — 6 protocols covering seamless interruption handling, acoustic awareness, kitchen physics (Food Lab method), proactive dietary coaching, TV co-watching (Culinary Class Wars mode), and autonomous gaze control.
+- **7 tools total** registered in Agent config (was 5): `google_search`, `get_food_safety_data`, `get_produce_safety_data`, `get_nutrition_estimate`, `update_timeline_step`, `set_observation_interval`, `analyze_and_recreate_recipe`
+- **Cache bust:** `app.js?v=7` → `app.js?v=8`
+- **34/34 tests pass** — 25 original + 9 new (4 for observation interval, 5 for recipe tool)
+
 ---
 
 ## 3. Current Feature Matrix
@@ -113,11 +128,13 @@ Complete frontend visual redesign to make the app look production-grade for hack
 | Camera streaming | ✅ | 1fps JPEG via getUserMedia → WebSocket |
 | Microphone capture | ✅ | PCM 16kHz mono via AudioWorklet |
 | Agent audio response | ✅ | 24kHz PCM streaming, separate playback AudioContext |
-| Barge-in interruption | ✅ | Mic level → flush player buffer |
+| Barge-in interruption | ✅ | Sustained 6-frame threshold + GainNode ducking (50ms fade) |
 | Voice-first auto-connect | ✅ | Camera, mic, WS connect on page load |
+| Screen Wake Lock | ✅ | `navigator.wakeLock` with `visibilitychange` re-acquisition |
 | Text transcription | ✅ | Both input and output transcription streaming |
 | Observation loop | ✅ | Every 15-25 seconds, rotates 3 prompts |
-| 4 grounding tools | ✅ | USDA safety + nutrition, EWG produce, Google Search |
+| Dynamic camera polling | ✅ | Agent-controlled via `set_observation_interval` tool |
+| 7 grounding tools | ✅ | USDA safety + nutrition, EWG produce, Google Search, timeline, observation interval, recipe reverse-engineering |
 | Dinner Timeline Widget | ✅ | Collapsible, step indicators, animations |
 | AI Status Orb | ✅ | Glassmorphic, 4 animated states |
 | Tool Data Cards | ✅ | SVG icons, temp gauge, macro bars |
@@ -132,7 +149,7 @@ Complete frontend visual redesign to make the app look production-grade for hack
 | PWA manifest | ✅ | Installable |
 | Splash screen | ✅ | Animated SVG flame + particles |
 | Permission denial handling | ✅ | Camera/mic/WS independent |
-| pytest suite | ✅ | 25/25 passing |
+| pytest suite | ✅ | 34/34 passing |
 | Cloud Run deployment | ✅ | Live URL working |
 | Devpost content | ✅ | Ready to paste |
 
@@ -142,14 +159,15 @@ Complete frontend visual redesign to make the app look production-grade for hack
 
 | Priority | Issue | Details |
 |----------|-------|---------|
-| P2 | Barge-in threshold tuning | `BARGE_IN_THRESHOLD` (default 15) may need tuning for noisy kitchens |
+| P2 | Barge-in threshold tuning | `BARGE_IN_THRESHOLD` (default 15) and `SUSTAINED_FRAMES_REQUIRED` (default 6) may need tuning per environment |
+| P3 | Recipe card UI | `analyze_and_recreate_recipe` results go to Activity Log only — no dedicated SVG card yet |
 
 ---
 
 ## 5. Remaining Work
 
-### Phase E: Demo & Submit
-- [ ] **Test on phone** with real kitchen scenario
+### Phase F: Demo & Submit
+- [ ] **Test on phone** with real kitchen scenario (verify Wake Lock, sustained barge-in, dynamic camera interval)
 - [ ] **Record 4-minute demo video** (script ready in `demo_script.md`)
 - [ ] **Submit on Devpost** (content ready in `DEVPOST.md`)
 - [ ] **Push to public GitHub** (repo: https://github.com/gorajin/mise)
@@ -157,7 +175,8 @@ Complete frontend visual redesign to make the app look production-grade for hack
 
 ### Nice-to-Have
 - [ ] Smart glasses integration (architecture supports it)
-- [ ] Recipe import from URLs with automatic timeline generation
+- [ ] Dedicated recipe card UI with SVG icon for `analyze_and_recreate_recipe`
+- [ ] Backend observation loop interval also made dynamic via `set_observation_interval`
 
 ---
 
@@ -165,8 +184,8 @@ Complete frontend visual redesign to make the app look production-grade for hack
 
 | Criteria | Score | Evidence |
 |----------|-------|----------|
-| Quality Application | 9/10 | 25 tests, graceful error handling, premium UI, clean architecture |
-| Leveraging Gemini/ADK | 9/10 | bidiGenerateContent, 5 tools, Live API, observation loop |
+| Quality Application | 9/10 | 34 tests, graceful error handling, premium UI, clean architecture |
+| Leveraging Gemini/ADK | 10/10 | bidiGenerateContent, 7 tools, Live API, observation loop, autonomous gaze control |
 | Real-World Impact | 8/10 | Every cook needs this — fully hands-free |
 | Novelty | 9/10 | Proactive observation loop + visible agent activity log |
 | Multimodal | 9/10 | Camera + mic + voice + barge-in |
@@ -182,11 +201,13 @@ Complete frontend visual redesign to make the app look production-grade for hack
 Browser (Phone) ──WebSocket──▶ FastAPI Server ──ADK bidi──▶ Gemini 2.5 Flash Live API
   ├── Camera (1fps JPEG)              │
   ├── Mic (PCM 16kHz)                 ├── Observation Loop (proactive, 15-25s)
-  ├── Audio Player (24kHz)            ├── get_food_safety_data (USDA)
-  ├── Barge-in (buffer flush)         ├── get_produce_safety_data (EWG)
-  ├── AI Status Orb (glassmorphic)    ├── get_nutrition_estimate (USDA)
-  ├── Tool Data Cards (SVG)           ├── update_timeline_step
-  ├── Viewfinder Corners              └── google_search (grounding)
+  ├── Audio Player (24kHz + GainNode) ├── get_food_safety_data (USDA)
+  ├── Barge-in (sustained + ducking)  ├── get_produce_safety_data (EWG)
+  ├── Wake Lock (screen alive)        ├── get_nutrition_estimate (USDA)
+  ├── AI Status Orb (glassmorphic)    ├── update_timeline_step
+  ├── Tool Data Cards (SVG)           ├── set_observation_interval
+  ├── Viewfinder Corners              ├── analyze_and_recreate_recipe
+  │                                   └── google_search (grounding)
   ├── Cooking Phase Bar
   ├── Multiple Timers (Map)
   ├── Caption Bar
@@ -203,7 +224,7 @@ mise/
 │   ├── main.py                  # FastAPI + WebSocket + observation loop
 │   ├── mise_agent/
 │   │   ├── agent.py             # Agent persona + system prompt
-│   │   ├── tools.py             # 4 grounding tools + update_timeline_step
+│   │   ├── tools.py             # 5 grounding tools + update_timeline_step + set_observation_interval + analyze_and_recreate_recipe
 │   │   └── __init__.py
 │   ├── data/
 │   │   ├── food_safety.json     # USDA safe cooking temps
@@ -218,7 +239,7 @@ mise/
 │           ├── pcm-recorder-processor.js
 │           └── pcm-player-processor.js
 ├── tests/
-│   └── test_tools.py            # 25 pytest tests
+│   └── test_tools.py            # 34 pytest tests
 ├── Dockerfile
 ├── pyproject.toml
 ├── demo_script.md               # 4-minute demo video script
@@ -269,3 +290,4 @@ gcloud run deploy mise --source . --region us-central1 --allow-unauthenticated \
 | 11 | Agent keeps talking on interrupt | Barge-in: mic level → flush buffer | `app.js` |
 | 12 | Camera denied kills entire app | Independent try/catch per component | `app.js` |
 | 13 | `gemini-2.0-flash-live-001` deprecated | Switched to `gemini-2.5-flash-native-audio-preview-12-2025` | `agent.py` |
+| 14 | Barge-in triggers on transient noise | Added sustained 6-frame counter + GainNode ducking | `app.js` |

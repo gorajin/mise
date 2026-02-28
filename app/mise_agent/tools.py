@@ -200,3 +200,57 @@ def update_timeline_step(step_name: str, step_description: str, status: str) -> 
         A confirmation message that the UI was updated.
     """
     return f"Successfully updated timeline UI: {step_name} -> {status}"
+
+
+def set_observation_interval(seconds: int, reason: str) -> dict:
+    """Dynamically adjust how often the camera takes a picture.
+
+    Use this tool to control your own visual polling rate based on the physics
+    of the food being cooked. Call this proactively:
+    - 5 seconds for fast-paced/risky tasks (searing, chopping, high heat).
+    - 15-20 seconds for normal active cooking.
+    - 30-60 seconds for passive waiting (baking, simmering, proofing).
+
+    Args:
+        seconds: The new interval in seconds between camera captures.
+        reason: Brief explanation of why you're changing the interval.
+
+    Returns:
+        A confirmation dict with the new interval and reason.
+    """
+    return {
+        "action": "interval_updated",
+        "new_interval_seconds": seconds,
+        "reason": reason,
+    }
+
+
+def analyze_and_recreate_recipe(
+    dish_name: str, ingredients: list[str], chronological_steps: list[str]
+) -> dict:
+    """Reverse-engineer a recipe seen on a TV show or requested by the user.
+
+    Generates a grocery list and extracts the exact chronological cooking steps
+    so you can walk the user through it step-by-step. Use this when:
+    - The user points the camera at a cooking show and you identify dishes.
+    - The user describes a dish they want to recreate.
+    - You want to build a structured recipe from observed techniques.
+
+    After calling this tool, proactively use update_timeline_step to build
+    out a timeline of the reverse-engineered recipe.
+
+    Args:
+        dish_name: Name of the dish being reverse-engineered.
+        ingredients: Full list of ingredients needed (grocery list).
+        chronological_steps: Ordered list of cooking steps from start to finish.
+
+    Returns:
+        A structured dict with the dish name, grocery list, steps, and UI status.
+    """
+    return {
+        "action": "recipe_reverse_engineered",
+        "dish": dish_name,
+        "grocery_list": ingredients,
+        "reconstructed_steps": chronological_steps,
+        "ui_status": "Recipe and Grocery List added to Activity Log.",
+    }

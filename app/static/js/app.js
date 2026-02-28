@@ -27,6 +27,14 @@ class MiseApp {
         this.speakingTimeout = null;
         this.bargeInCooldown = false;
         this.BARGE_IN_THRESHOLD = 15;
+        this.bargeInFrames = 0;
+        this.SUSTAINED_FRAMES_REQUIRED = 6;
+
+        // Wake Lock
+        this.wakeLock = null;
+
+        // Playback gain (for smooth ducking)
+        this.playbackGainNode = null;
 
         // Reconnect
         this.reconnectAttempts = 0;
@@ -185,8 +193,29 @@ class MiseApp {
         });
     }
 
+    // ── Wake Lock ──
+    async requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator) {
+                this.wakeLock = await navigator.wakeLock.request('screen');
+                console.log('[MISE] Wake Lock active: Screen will not sleep.');
+                document.addEventListener('visibilitychange', async () => {
+                    if (this.wakeLock !== null && document.visibilityState === 'visible') {
+                        try {
+                            this.wakeLock = await navigator.wakeLock.request('screen');
+                            console.log('[MISE] Wake Lock re-acquired.');
+                        } catch (e) { console.warn('[MISE] Wake Lock re-acquire failed:', e.message); }
+                    }
+                });
+            }
+        } catch (err) {
+            console.warn(`[MISE] Wake Lock failed: ${err.message}`);
+        }
+    }
+
     // ── Auto-Start ──
     async autoStart() {
+        await this.requestWakeLock();
         this.updateSplash('Starting camera...');
         await this.startCamera();
         this.updateSplash('Connecting to MISE...');
@@ -297,7 +326,9 @@ class MiseApp {
             this.isRecording = true;
             await this.playbackContext.audioWorklet.addModule('/static/js/pcm-player-processor.js');
             this.playerNode = new AudioWorkletNode(this.playbackContext, 'pcm-player-processor');
-            this.playerNode.connect(this.playbackContext.destination);
+            this.playbackGainNode = this.playbackContext.createGain();
+            this.playerNode.connect(this.playbackGainNode);
+            this.playbackGainNode.connect(this.playbackContext.destination);
             document.getElementById('micLabel').textContent = 'Listening...';
             this.startMicLevel();
         } catch (err) {
@@ -308,7 +339,9 @@ class MiseApp {
                 await this.playbackContext.resume();
                 await this.playbackContext.audioWorklet.addModule('/static/js/pcm-player-processor.js');
                 this.playerNode = new AudioWorkletNode(this.playbackContext, 'pcm-player-processor');
-                this.playerNode.connect(this.playbackContext.destination);
+                this.playbackGainNode = this.playbackContext.createGain();
+                this.playerNode.connect(this.playbackGainNode);
+                this.playbackGainNode.connect(this.playbackContext.destination);
             } catch (e) { console.warn('[MISE] Playback failed:', e); }
             this.addMessage('system', err.name === 'NotAllowedError'
                 ? '🎙️ Mic access denied. Use text input — you can still hear MISE.'
@@ -332,7 +365,15 @@ class MiseApp {
                 levelBar.style.width = pct + '%';
                 if (!this.isAgentSpeaking && avg > 5) this.updateAIStatus('listening');
                 else if (!this.isAgentSpeaking && avg <= 5 && this.aiRingState === 'listening') this.updateAIStatus('idle');
-                if (avg > this.BARGE_IN_THRESHOLD && this.isAgentSpeaking && !this.bargeInCooldown) this.bargeIn();
+                if (avg > this.BARGE_IN_THRESHOLD && this.isAgentSpeaking && !this.bargeInCooldown) {
+                    this.bargeInFrames++;
+                    if (this.bargeInFrames > this.SUSTAINED_FRAMES_REQUIRED) {
+                        this.handleSeamlessBargeIn();
+                        this.bargeInFrames = 0;
+                    }
+                } else if (!this.isAgentSpeaking || avg <= this.BARGE_IN_THRESHOLD) {
+                    this.bargeInFrames = 0;
+                }
             }
             this.micLevelAnimFrame = requestAnimationFrame(update);
         };
@@ -345,6 +386,25 @@ class MiseApp {
         this.isAgentSpeaking = false;
         this.showAgentSpeaking(false);
         if (this.speakingTimeout) { clearTimeout(this.speakingTimeout); this.speakingTimeout = null; }
+        this.bargeInCooldown = true;
+        setTimeout(() => { this.bargeInCooldown = false; }, 2000);
+    }
+
+    handleSeamlessBargeIn() {
+        if (!this.playbackContext || !this.playbackGainNode) return;
+        console.log('[MISE] Seamless barge-in triggered');
+        const now = this.playbackContext.currentTime;
+        this.playbackGainNode.gain.cancelScheduledValues(now);
+        this.playbackGainNode.gain.setValueAtTime(this.playbackGainNode.gain.value, now);
+        this.playbackGainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        setTimeout(() => {
+            if (this.playerNode) this.playerNode.port.postMessage({ type: 'flush' });
+            this.isAgentSpeaking = false;
+            this.showAgentSpeaking(false);
+            if (this.speakingTimeout) { clearTimeout(this.speakingTimeout); this.speakingTimeout = null; }
+            this.playbackGainNode.gain.setValueAtTime(1, this.playbackContext.currentTime);
+            console.log('[MISE] Audio gracefully ducked for seamless interruption.');
+        }, 60);
         this.bargeInCooldown = true;
         setTimeout(() => { this.bargeInCooldown = false; }, 2000);
     }
@@ -467,6 +527,19 @@ class MiseApp {
     handleFunctionCall(call) {
         if (call.name === 'update_timeline_step') {
             this.updateTimelineUI(call.args);
+        } else if (call.name === 'set_observation_interval') {
+            const newIntervalSeconds = call.args.seconds || 15;
+            console.log(`[MISE] Agent updated visual polling to ${newIntervalSeconds}s.`);
+            if (this.frameInterval) {
+                clearInterval(this.frameInterval);
+                this.frameInterval = setInterval(() => this.captureAndSendFrame(), newIntervalSeconds * 1000);
+            }
+            this.logActivity('📷', `Camera interval → ${newIntervalSeconds}s: ${call.args.reason || ''}`);
+        } else if (call.name === 'analyze_and_recreate_recipe') {
+            this.updateAIStatus('thinking');
+            this.pendingToolCalls[call.name] = call.args;
+            const dishName = call.args.dish_name || 'Recipe';
+            this.logActivity('👨‍🍳', `Reverse-engineering: "${dishName}"`);
         } else if (['get_food_safety_data', 'get_produce_safety_data', 'get_nutrition_estimate'].includes(call.name)) {
             this.updateAIStatus('thinking');
             this.pendingToolCalls[call.name] = call.args;
@@ -484,6 +557,15 @@ class MiseApp {
         delete this.pendingToolCalls[name];
         if (Object.keys(this.pendingToolCalls).length === 0 && this.aiRingState === 'thinking')
             this.updateAIStatus(this.isAgentSpeaking ? 'speaking' : 'idle');
+        // Handle recipe reverse-engineering result
+        if (name === 'analyze_and_recreate_recipe') {
+            const dish = data.dish || args.dish_name || 'Recipe';
+            const groceryList = data.grocery_list || [];
+            const steps = data.reconstructed_steps || [];
+            this.logActivity('🍳', `Recipe: ${dish} — ${groceryList.length} ingredients, ${steps.length} steps`);
+            if (groceryList.length > 0) this.logActivity('🛒', `Grocery: ${groceryList.slice(0, 5).join(', ')}${groceryList.length > 5 ? '...' : ''}`);
+            return;
+        }
         this.showToolCard(name, args, data);
         // Log tool result
         if (data.safe_internal_temp_f) this.logActivity('✓', `Result: ${args.food_item || 'food'} → ${data.safe_internal_temp_f}°F`);
