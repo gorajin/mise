@@ -1,8 +1,9 @@
 # MISE — Comprehensive Agent Handoff
 
-> **Last updated:** 2026-02-27 17:40 PST  
-> **Status:** Visual overhaul complete. Phase E (demo video) remaining.  
+> **Last updated:** 2026-02-27 18:30 PST  
+> **Status:** All features complete. Phase E (demo video + submit) remaining.  
 > **Live URL:** https://mise-965205106736.us-central1.run.app  
+> **GitHub:** https://github.com/gorajin/mise  
 > **Cloud Run:** Project `gen-lang-client-0991814371`, region `us-central1`
 
 ---
@@ -75,8 +76,8 @@ MISE (Live Kitchen Intelligence) is a **hands-free dinner coordinator** built fo
 - Fixed deprecated model: `gemini-2.0-flash-live-001` → `gemini-2.5-flash-native-audio-preview-12-2025`
 - Redeployed to Cloud Run
 
-### Session 6 — Feb 27 17:00 PST — Visual & UX Overhaul (THIS SESSION)
-**Uncommitted changes — 4 files, 1359 insertions, 1239 deletions**
+### Session 6 — Feb 27 17:00 PST — Visual & UX Overhaul
+**Commit:** `e600572` — Visual & UX overhaul
 
 Complete frontend visual redesign to make the app look production-grade for hackathon judges:
 
@@ -90,6 +91,16 @@ Complete frontend visual redesign to make the app look production-grade for hack
 - **Auto-start to Camera:** Skips dinner planner on load, goes straight to camera + voice
 - **Agent Prompt:** Enhanced to use `update_timeline_step` aggressively and announce timers explicitly ("set a timer for X minutes")
 - **All 25 tests pass** — no backend changes beyond minor prompt tweaks
+
+### Session 7 — Feb 27 18:30 PST — Final Polish & Submission Prep
+**Files modified:** `app.js`, `index.html`, `style.css`, `DEVPOST.md`, `README.md`, `HANDOFF.md`
+
+- **Timer Completion Chime:** 3-note ascending chord (C5→E5→G5) via Web Audio API oscillator. No external audio files needed. Uses existing `playbackContext`.
+- **Agent Activity Log:** Glassmorphic collapsible panel on camera view showing real-time agent actions — tool calls, tool results, observation scans, timeline updates, connection events. Proves agentic behavior to judges.
+- **DEVPOST.md fixes:** Corrected model name to Gemini 2.5 Flash, updated architecture to show all 5 tools, fixed GitHub URL, removed stale "What's Next" items, enhanced feature descriptions.
+- **README.md fixes:** Same corrections — model, tools, GitHub URL, project structure comments, feature list.
+- **Cache bust:** `app.js?v=5` → `app.js?v=7`
+- **All 25 tests pass** — zero backend changes
 
 ---
 
@@ -114,6 +125,8 @@ Complete frontend visual redesign to make the app look production-grade for hack
 | Cooking Phase Bar | ✅ | PREP → COOK → PLATE → SERVE auto-detection |
 | Multiple Concurrent Timers | ✅ | Up to 4 with individual dismiss |
 | Camera Viewfinder | ✅ | Animated corners, glow on observation |
+| Timer completion chime | ✅ | 3-note Web Audio API chord (C5-E5-G5) |
+| Agent Activity Log | ✅ | Collapsible glassmorphic panel, logs tool calls/scans |
 | Mobile bottom-sheet | ✅ | Draggable transcript |
 | Mute toggle | ✅ | Disables mic tracks |
 | PWA manifest | ✅ | Installable |
@@ -139,12 +152,12 @@ Complete frontend visual redesign to make the app look production-grade for hack
 - [ ] **Test on phone** with real kitchen scenario
 - [ ] **Record 4-minute demo video** (script ready in `demo_script.md`)
 - [ ] **Submit on Devpost** (content ready in `DEVPOST.md`)
-- [ ] **Push to public GitHub** (update repo URL in README and Devpost)
-- [ ] **Redeploy latest visual overhaul** to Cloud Run
+- [ ] **Push to public GitHub** (repo: https://github.com/gorajin/mise)
+- [ ] **Redeploy latest changes** to Cloud Run
 
 ### Nice-to-Have
-- [ ] Sound design cues (chime on timer, tool response)
 - [ ] Smart glasses integration (architecture supports it)
+- [ ] Recipe import from URLs with automatic timeline generation
 
 ---
 
@@ -153,11 +166,11 @@ Complete frontend visual redesign to make the app look production-grade for hack
 | Criteria | Score | Evidence |
 |----------|-------|----------|
 | Quality Application | 9/10 | 25 tests, graceful error handling, premium UI, clean architecture |
-| Leveraging Gemini/ADK | 9/10 | bidiGenerateContent, 4 tools, Live API, observation loop |
+| Leveraging Gemini/ADK | 9/10 | bidiGenerateContent, 5 tools, Live API, observation loop |
 | Real-World Impact | 8/10 | Every cook needs this — fully hands-free |
-| Novelty | 8/10 | Proactive observation loop is unique |
+| Novelty | 9/10 | Proactive observation loop + visible agent activity log |
 | Multimodal | 9/10 | Camera + mic + voice + barge-in |
-| Agentic Workflows | 9/10 | Dinner timeline, phase tracking, multiple timers, tool cards |
+| Agentic Workflows | 10/10 | Dinner timeline, phase tracking, multiple timers, tool cards, activity log |
 | Google Cloud | 8/10 | Cloud Run deployment, live URL |
 | Demo | 0/10 | ⚠️ **No demo video yet** |
 
@@ -197,7 +210,7 @@ mise/
 │   │   ├── produce_safety.json  # Washing methods + Dirty Dozen
 │   │   └── nutrition.json       # Calories, macros, healthy swaps
 │   └── static/
-│       ├── index.html           # Main UI (SVG icons, viewfinder, orb)
+│       ├── index.html           # Main UI (orb, viewfinder, activity log)
 │       ├── css/style.css        # Premium dark kitchen theme
 │       ├── manifest.json        # PWA
 │       └── js/

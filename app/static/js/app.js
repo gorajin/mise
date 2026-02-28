@@ -52,6 +52,10 @@ class MiseApp {
         this.captionTimeout = null;
         this.pendingToolCalls = {};
 
+        // Activity log
+        this.activityCount = 0;
+        this.observationCount = 0;
+
         // Audio
         this.recordingContext = null;
         this.playbackContext = null;
@@ -84,6 +88,8 @@ class MiseApp {
         this.viewfinder = document.getElementById('viewfinder');
         this.timersContainer = document.getElementById('timersContainer');
         this.cookingPhaseBar = document.getElementById('cookingPhaseBar');
+        this.activityEntries = document.getElementById('activityEntries');
+        this.activityCountEl = document.getElementById('activityCount');
 
         this.init();
     }
@@ -137,6 +143,13 @@ class MiseApp {
         }
 
         this.initBottomSheet();
+
+        const activityToggle = document.getElementById('activityToggle');
+        if (activityToggle) {
+            activityToggle.addEventListener('click', () => {
+                document.getElementById('activityLog').classList.toggle('collapsed');
+            });
+        }
 
         document.getElementById('mealInput').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') document.getElementById('startButton').click();
@@ -382,6 +395,7 @@ class MiseApp {
                 this.isConnected = true; this.wasConnected = true; this.reconnectAttempts = 0;
                 this.updateConnectionStatus(true); this.hideReconnectBanner();
                 this.addMessage('system', '🔥 Connected — just start talking! Or type a meal plan above.');
+                this.logActivity('🔗', 'Connected to MISE agent');
                 resolve();
             };
             this.ws.onmessage = (event) => this.handleMessage(event);
@@ -457,6 +471,9 @@ class MiseApp {
             this.updateAIStatus('thinking');
             this.pendingToolCalls[call.name] = call.args;
             this.showToolCard(call.name, call.args, null);
+            const icons = { get_food_safety_data: '🌡️', get_produce_safety_data: '🥬', get_nutrition_estimate: '📊' };
+            const argVal = call.args.food_item || call.args.produce_item || '';
+            this.logActivity(icons[call.name] || '🔧', `Tool: ${call.name.replace('get_', '').replace('_data', '').replace('_estimate', '')}("${argVal}")`);
         }
     }
 
@@ -468,6 +485,10 @@ class MiseApp {
         if (Object.keys(this.pendingToolCalls).length === 0 && this.aiRingState === 'thinking')
             this.updateAIStatus(this.isAgentSpeaking ? 'speaking' : 'idle');
         this.showToolCard(name, args, data);
+        // Log tool result
+        if (data.safe_internal_temp_f) this.logActivity('✓', `Result: ${args.food_item || 'food'} → ${data.safe_internal_temp_f}°F`);
+        else if (data.wash_method) this.logActivity('✓', `Result: ${data.is_dirty_dozen ? '⚠ Dirty Dozen' : 'wash method returned'}`);
+        else if (data.calories_per_serving || data.calories) this.logActivity('✓', `Result: ${data.calories_per_serving || data.calories} cal`);
     }
 
     updateTimelineUI(args) {
@@ -475,6 +496,7 @@ class MiseApp {
         const list = document.getElementById('timelineSteps');
         if (!widget || !list) return;
         widget.classList.remove('hidden');
+        this.logActivity('📋', `Timeline: "${args.step_name || 'step'}" → ${args.status || 'pending'}`);
         const cleanName = (args.step_name || 'step').toLowerCase().replace(/[^a-z0-9]/g, '-');
         const stepId = `step-${cleanName}`;
         let stepEl = document.getElementById(stepId);
@@ -628,6 +650,8 @@ class MiseApp {
             this.viewfinder.classList.add('scanning');
             setTimeout(() => this.viewfinder.classList.remove('scanning'), 2000);
         }
+        this.observationCount++;
+        this.logActivity('👁️', `Observation scan #${this.observationCount}`);
     }
 
     // ── Multiple Concurrent Timers ──
@@ -683,8 +707,10 @@ class MiseApp {
                 clearInterval(interval);
                 timeEl.textContent = '00:00';
                 timeEl.classList.add('urgent');
+                this.playTimerChime();
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
                 this.addMessage('system', `⏱️ Timer done! (${label})`);
+                this.logActivity('⏱️', `Timer complete: ${label}`);
                 setTimeout(() => this.removeCookingTimer(id), 10000);
             }
         }, 1000);
@@ -789,6 +815,65 @@ class MiseApp {
             const elapsed = Math.floor((Date.now() - this.sessionStartTime) / 1000);
             this.sessionTimer.textContent = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
         }, 1000);
+    }
+    // ── Timer Chime (Web Audio API) ──
+    playTimerChime() {
+        try {
+            const ctx = this.playbackContext || new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state === 'suspended') ctx.resume();
+            const now = ctx.currentTime;
+            // Note 1: C5 (523Hz)
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(523, now);
+            gain1.gain.setValueAtTime(0.3, now);
+            gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.3);
+            // Note 2: E5 (659Hz)
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(659, now + 0.15);
+            gain2.gain.setValueAtTime(0, now);
+            gain2.gain.setValueAtTime(0.3, now + 0.15);
+            gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.15);
+            osc2.stop(now + 0.5);
+            // Note 3: G5 (784Hz) — resolution
+            const osc3 = ctx.createOscillator();
+            const gain3 = ctx.createGain();
+            osc3.type = 'sine';
+            osc3.frequency.setValueAtTime(784, now + 0.3);
+            gain3.gain.setValueAtTime(0, now);
+            gain3.gain.setValueAtTime(0.25, now + 0.3);
+            gain3.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+            osc3.connect(gain3);
+            gain3.connect(ctx.destination);
+            osc3.start(now + 0.3);
+            osc3.stop(now + 0.7);
+        } catch (e) { console.warn('[MISE] Chime error:', e); }
+    }
+
+    // ── Agent Activity Log ──
+    logActivity(icon, text) {
+        if (!this.activityEntries) return;
+        this.activityCount++;
+        if (this.activityCountEl) this.activityCountEl.textContent = this.activityCount;
+        const now = new Date();
+        const ts = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        const li = document.createElement('li');
+        li.className = 'activity-entry';
+        li.innerHTML = `<span class="activity-time">${ts}</span><span class="activity-icon">${icon}</span><span class="activity-text">${this.escapeHtml(text)}</span>`;
+        // Prepend (newest first)
+        this.activityEntries.insertBefore(li, this.activityEntries.firstChild);
+        // Limit to 30 entries
+        while (this.activityEntries.children.length > 30) this.activityEntries.removeChild(this.activityEntries.lastChild);
     }
 }
 

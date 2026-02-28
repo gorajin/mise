@@ -192,6 +192,26 @@
                     <!-- Timers Container (Multiple Concurrent) -->
                     <div class="timers-container" id="timersContainer"></div>
 
+                    <!-- Agent Activity Log -->
+                    <div class="activity-log collapsed" id="activityLog">
+                        <div class="activity-header" id="activityToggle">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                            </svg>
+                            <span>Agent Activity</span>
+                            <span class="activity-count" id="activityCount">0</span>
+                            <svg class="activity-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="18 15 12 9 6 15" />
+                            </svg>
+                        </div>
+                        <ul class="activity-entries" id="activityEntries"></ul>
+                    </div>
+
                     <!-- Camera Controls Overlay -->
                     <div class="camera-controls">
                         <div class="cooking-state" id="cookingState">
@@ -351,7 +371,7 @@
     <script src="/static/js/pcm-player-processor.js"></script>
     <script src="/static/js/audio-recorder.js"></script>
     <script src="/static/js/audio-player.js"></script>
-    <script src="/static/js/app.js?v=5"></script>
+    <script src="/static/js/app.js?v=7"></script>
 </body>
 
 </html>

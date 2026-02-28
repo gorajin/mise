@@ -2079,3 +2079,150 @@ body {
         width: 400px;
     }
 }
+
+/* ═══ AGENT ACTIVITY LOG ═══ */
+.activity-log {
+    position: absolute;
+    bottom: 52px;
+    right: 12px;
+    width: 260px;
+    max-height: 180px;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(212, 132, 90, 0.12);
+    border-radius: var(--radius-md);
+    z-index: 14;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.activity-log.collapsed {
+    max-height: 32px;
+}
+
+.activity-log.collapsed .activity-entries {
+    display: none;
+}
+
+.activity-log.collapsed .activity-chevron {
+    transform: rotate(180deg);
+}
+
+.activity-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.activity-header:hover {
+    color: var(--text-secondary);
+}
+
+.activity-header svg {
+    stroke: var(--accent-copper);
+    flex-shrink: 0;
+}
+
+.activity-count {
+    background: rgba(212, 132, 90, 0.2);
+    color: var(--accent-copper-bright);
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: var(--radius-full);
+    min-width: 18px;
+    text-align: center;
+}
+
+.activity-chevron {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+    stroke: var(--text-muted) !important;
+}
+
+.activity-entries {
+    list-style: none;
+    padding: 4px 6px;
+    margin: 0;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.activity-entries::-webkit-scrollbar {
+    width: 3px;
+}
+
+.activity-entries::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+.activity-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 3px 4px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    animation: entry-appear 0.2s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.activity-entry:last-child {
+    border-bottom: none;
+}
+
+@keyframes entry-appear {
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.activity-time {
+    font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    padding-top: 1px;
+    flex-shrink: 0;
+}
+
+.activity-icon {
+    flex-shrink: 0;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.activity-text {
+    flex: 1;
+    word-break: break-word;
+}
+
+@media(max-width:767px) {
+    .activity-log {
+        width: 200px;
+        right: 8px;
+        bottom: 48px;
+        max-height: 150px;
+    }
+}

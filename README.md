@@ -2,7 +2,7 @@
 
 > **Your hands-free dinner coordinator.** Tell MISE what you're cooking and when you want to eat — it builds a timeline, walks you through each step, watches your kitchen through the camera, and speaks up when something needs your attention.
 
-Built for the [Gemini Live Agent Challenge](https://devpost.com/) using [Google ADK](https://google.github.io/adk-docs/) + Gemini 2.0 Live API.
+Built for the [Gemini Live Agent Challenge](https://devpost.com/) using [Google ADK](https://google.github.io/adk-docs/) + Gemini 2.5 Flash Live API.
 
 ---
 
@@ -25,6 +25,9 @@ Built for the [Gemini Live Agent Challenge](https://devpost.com/) using [Google 
 | **👁️ Visual Verification** | Camera-based doneness checks, bread proofing assessment, consistency guidance |
 | **🎤 Hands-Free Voice** | Fully voice-operated — no touching the screen while cooking |
 | **⚡ Proactive Alerts** | Observation loop scans the camera every 15-25 seconds and speaks up when it sees something |
+| **📋 Dinner Timeline** | Dynamic step-by-step tracker with PREP → COOK → PLATE → SERVE phase bar |
+| **⏱️ Concurrent Timers** | Up to 4 timers with audible chimes on completion |
+| **🤖 Agent Activity Log** | Real-time feed of every tool call, observation, and decision — transparent agentic proof |
 
 ## 🏗️ Architecture
 
@@ -50,12 +53,13 @@ Built for the [Gemini Live Agent Challenge](https://devpost.com/) using [Google 
 │  │  (user → agent)   (agent → user)   (proactive)   │  │
 │  │                                                   │  │
 │  │  ┌─────────────────────────────────────────────┐  │  │
-│  │  │            MISE Agent (Gemini 2.0)          │  │  │
+│  │  │            MISE Agent (Gemini 2.5)          │  │  │
 │  │  │                                             │  │  │
 │  │  │  Tools:                                     │  │  │
 │  │  │  ├── 🌡️ get_food_safety_data (USDA)        │  │  │
 │  │  │  ├── 🥬 get_produce_safety_data (EWG)      │  │  │
 │  │  │  ├── 📊 get_nutrition_estimate (USDA)      │  │  │
+│  │  │  ├── 📋 update_timeline_step (agentic)     │  │  │
 │  │  │  └── 🔍 google_search (grounding)          │  │  │
 │  │  └─────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────┘  │
@@ -70,7 +74,7 @@ Built for the [Gemini Live Agent Challenge](https://devpost.com/) using [Google 
 
 ### Local Development
 ```bash
-git clone https://github.com/your-repo/mise.git
+git clone https://github.com/gorajin/mise.git
 cd mise
 
 # Set up environment
@@ -111,22 +115,27 @@ mise/
 │   ├── main.py                  # FastAPI + WebSocket + observation loop
 │   ├── mise_agent/
 │   │   ├── agent.py             # Agent persona + system prompt
-│   │   ├── tools.py             # 3 grounding tools
+│   │   ├── tools.py             # 5 tools (3 grounding + timeline + search)
 │   │   └── __init__.py
 │   ├── data/
 │   │   ├── food_safety.json     # USDA safe cooking temps
 │   │   ├── produce_safety.json  # Washing methods + Dirty Dozen
 │   │   └── nutrition.json       # Calories, macros, healthy swaps
 │   └── static/
-│       ├── index.html           # Dinner planner UI
+│       ├── index.html           # Main UI (orb, viewfinder, activity log)
 │       ├── css/style.css        # Premium dark kitchen theme
 │       └── js/
-│           ├── app.js           # WebSocket + camera + audio logic
+│           ├── app.js           # WebSocket + camera + audio + UI logic
 │           ├── pcm-recorder-processor.js
 │           └── pcm-player-processor.js
+├── tests/
+│   └── test_tools.py            # 25 pytest tests
 ├── Dockerfile
 ├── pyproject.toml
-└── terraform/                   # Cloud Run infrastructure
+├── demo_script.md               # 4-minute demo video script
+├── DEVPOST.md                   # Submission content
+├── HANDOFF.md                   # Agent handoff documentation
+└── README.md                    # This file
 ```
 
 ## 🧪 Tech Stack
@@ -134,7 +143,7 @@ mise/
 | Component | Technology |
 |---|---|
 | AI Framework | Google ADK (Agent Development Kit) |
-| Model | Gemini 2.0 Flash (bidiGenerateContent) |
+| Model | Gemini 2.5 Flash (native audio preview, bidiGenerateContent) |
 | Backend | FastAPI + WebSocket |
 | Frontend | Vanilla HTML/CSS/JS + AudioWorklet |
 | Camera | getUserMedia → 1fps JPEG frames |
@@ -145,9 +154,10 @@ mise/
 
 Built for the **Gemini Live Agent Challenge**. MISE demonstrates:
 - **Bidirectional streaming** — Real-time video + audio → real-time voice responses
-- **Tool use** — 4 grounding tools prevent hallucination on safety-critical data
+- **Tool use** — 5 tools prevent hallucination on safety-critical data and power agentic workflows
 - **Proactive behavior** — Observation loop enables agent-initiated interruptions
 - **Multi-modal** — Camera + microphone + voice output, fully hands-free
+- **Agentic coordination** — Dynamic dinner timeline, cooking phase detection, concurrent timers
 
 ## 📄 License
 
