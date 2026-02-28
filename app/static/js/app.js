@@ -1,13 +1,11 @@
 /**
  * MISE — Main Application Logic
- * 
  * Voice-first, hands-free cooking assistant.
  * Auto-connects camera + mic on load. Supports barge-in interruption.
  */
 
 class MiseApp {
     constructor() {
-        // State
         this.ws = null;
         this.userId = this.generateId();
         this.sessionId = this.generateId();
@@ -17,7 +15,6 @@ class MiseApp {
         this.isMuted = false;
         this.isCooking = false;
         this.frameInterval = null;
-        this.timerInterval = null;
         this.sessionStartTime = null;
         this.mealPlan = null;
         this.currentAgentMessage = '';
@@ -25,28 +22,35 @@ class MiseApp {
         this.currentUserMessage = '';
         this.currentUserElement = null;
 
-        // Barge-in state
+        // Barge-in
         this.isAgentSpeaking = false;
         this.speakingTimeout = null;
         this.bargeInCooldown = false;
-        this.BARGE_IN_THRESHOLD = 15; // mic level to trigger barge-in
+        this.BARGE_IN_THRESHOLD = 15;
 
-        // Reconnect state
+        // Reconnect
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 10;
         this.reconnectTimeout = null;
         this.wasConnected = false;
 
-        // Timer state
-        this.cookingTimer = null;
-        this.cookingTimerInterval = null;
-        this.cookingTimerSeconds = 0;
+        // Multiple timers
+        this.timers = new Map();
+        this.timerIdCounter = 0;
+
+        // Cooking phase
+        this.currentPhase = null;
+        this.phaseKeywords = {
+            prep: ['chop', 'dice', 'mince', 'slice', 'peel', 'wash', 'prep', 'cut', 'measure', 'mix', 'marinate', 'season', 'preheat'],
+            cook: ['sear', 'sauté', 'saute', 'roast', 'bake', 'boil', 'simmer', 'fry', 'grill', 'broil', 'cook', 'heat', 'brown', 'caramelize', 'reduce', 'steam', 'stir', 'flip'],
+            plate: ['plate', 'arrange', 'garnish', 'drizzle', 'sprinkle', 'serve', 'presentation'],
+            serve: ['enjoy', 'dinner is', 'ready to eat', 'bon appetit', 'dig in', 'everything.s ready']
+        };
 
         // HUD state
         this.aiRingState = 'idle';
         this.captionTimeout = null;
-        this.toolCardDismissTimers = [];
-        this.pendingToolCalls = {}; // track in-flight tool calls
+        this.pendingToolCalls = {};
 
         // Audio
         this.recordingContext = null;
@@ -58,7 +62,7 @@ class MiseApp {
         this.analyserNode = null;
         this.micLevelAnimFrame = null;
 
-        // DOM Elements
+        // DOM
         this.cameraFeed = document.getElementById('cameraFeed');
         this.captureCanvas = document.getElementById('captureCanvas');
         this.cameraPlaceholder = document.getElementById('cameraPlaceholder');
@@ -77,6 +81,9 @@ class MiseApp {
         this.captionBar = document.getElementById('captionBar');
         this.captionText = document.getElementById('captionText');
         this.toolCardsContainer = document.getElementById('toolCardsContainer');
+        this.viewfinder = document.getElementById('viewfinder');
+        this.timersContainer = document.getElementById('timersContainer');
+        this.cookingPhaseBar = document.getElementById('cookingPhaseBar');
 
         this.init();
     }
@@ -87,14 +94,10 @@ class MiseApp {
     }
 
     init() {
-        // The "Start Cooking" button sends meal plan but also triggers connect if not already connected
         document.getElementById('startButton').addEventListener('click', () => {
             const meal = document.getElementById('mealInput').value.trim();
             const time = document.getElementById('timeInput').value;
-            if (meal) {
-                this.mealPlan = { meal, dinnerTime: time || '19:00' };
-            }
-            // If already connected (voice-first auto-connect), just send the plan and hide planner
+            if (meal) this.mealPlan = { meal, dinnerTime: time || '19:00' };
             if (this.isConnected) {
                 this.cameraPlaceholder.classList.add('hidden');
                 this.sendMealPlan();
@@ -103,169 +106,94 @@ class MiseApp {
             }
         });
 
-        // Start without a plan — just hide the planner overlay
         document.getElementById('startFreeButton').addEventListener('click', () => {
             this.mealPlan = null;
-            if (this.isConnected) {
-                this.cameraPlaceholder.classList.add('hidden');
-            } else {
-                this.start();
-            }
+            if (this.isConnected) this.cameraPlaceholder.classList.add('hidden');
+            else this.start();
         });
 
-        // Text input
         document.getElementById('sendButton').addEventListener('click', () => this.sendText());
-        this.textInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this.sendText();
-        });
+        this.textInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.sendText(); });
 
-        // Quick action buttons
         document.querySelectorAll('.quick-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.sendTextMessage(btn.dataset.text);
-            });
+            btn.addEventListener('click', () => this.sendTextMessage(btn.dataset.text));
         });
 
-        // FAB next step button
         const fabNext = document.getElementById('fabNext');
-        if (fabNext) {
-            fabNext.addEventListener('click', () => {
-                this.sendTextMessage(fabNext.dataset.text);
-            });
-        }
+        if (fabNext) fabNext.addEventListener('click', () => this.sendTextMessage(fabNext.dataset.text));
 
-        // Clear transcript
         document.getElementById('clearTranscript').addEventListener('click', () => {
             this.transcriptMessages.innerHTML = '';
         });
 
-        // Mute button
         const muteBtn = document.getElementById('muteButton');
-        if (muteBtn) {
-            muteBtn.addEventListener('click', () => this.toggleMute());
+        if (muteBtn) muteBtn.addEventListener('click', () => this.toggleMute());
+
+        const timelineToggle = document.getElementById('timelineToggle');
+        if (timelineToggle) {
+            timelineToggle.addEventListener('click', () => {
+                document.getElementById('timelineWidget').classList.toggle('collapsed');
+            });
         }
 
-        // Timer dismiss
-        const timerDismiss = document.getElementById('timerDismiss');
-        if (timerDismiss) {
-            timerDismiss.addEventListener('click', () => this.dismissTimer());
-        }
-
-        // Bottom-sheet drag (mobile)
         this.initBottomSheet();
 
-        // Enter key on meal input triggers start
         document.getElementById('mealInput').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('startButton').click();
-            }
+            if (e.key === 'Enter') document.getElementById('startButton').click();
         });
 
-        // ─── VOICE-FIRST: Auto-connect immediately ────────────
-        // Don't wait for button press — start camera, mic, and connection right away.
-        // The user can optionally type a meal plan, or just start talking.
         this.autoStart();
     }
 
-    // ── Bottom Sheet (Mobile) ───────────────────────────
-
+    // ── Bottom Sheet ──
     initBottomSheet() {
         const handle = document.getElementById('sheetHandle');
         const header = document.querySelector('.transcript-header');
         if (!handle) return;
+        let isDragging = false, startY = 0, startHeight = 0;
 
-        let isDragging = false;
-        let startY = 0;
-        let startHeight = 0;
-
-        const onStart = (clientY) => {
-            isDragging = true;
-            startY = clientY;
-            startHeight = this.transcriptPanel.offsetHeight;
-            this.transcriptPanel.style.transition = 'none';
-        };
-
-        const onMove = (clientY) => {
-            if (!isDragging) return;
-            const deltaY = startY - clientY;
-            const newHeight = Math.max(56, Math.min(window.innerHeight * 0.65, startHeight + deltaY));
-            this.transcriptPanel.style.height = newHeight + 'px';
-        };
-
+        const onStart = (clientY) => { isDragging = true; startY = clientY; startHeight = this.transcriptPanel.offsetHeight; this.transcriptPanel.style.transition = 'none'; };
+        const onMove = (clientY) => { if (!isDragging) return; const newH = Math.max(56, Math.min(window.innerHeight * 0.65, startHeight + (startY - clientY))); this.transcriptPanel.style.height = newH + 'px'; };
         const onEnd = () => {
-            if (!isDragging) return;
-            isDragging = false;
+            if (!isDragging) return; isDragging = false;
             this.transcriptPanel.style.transition = 'height 0.3s ease';
-            const currentHeight = this.transcriptPanel.offsetHeight;
-            const windowHeight = window.innerHeight;
-
-            if (currentHeight < 100) {
-                this.transcriptPanel.classList.add('collapsed');
-                this.transcriptPanel.classList.remove('expanded');
-            } else if (currentHeight > windowHeight * 0.5) {
-                this.transcriptPanel.classList.add('expanded');
-                this.transcriptPanel.classList.remove('collapsed');
-                this.transcriptPanel.style.height = '';
-            } else {
-                this.transcriptPanel.classList.remove('collapsed', 'expanded');
-                this.transcriptPanel.style.height = '';
-            }
+            const h = this.transcriptPanel.offsetHeight;
+            if (h < 100) { this.transcriptPanel.classList.add('collapsed'); this.transcriptPanel.classList.remove('expanded'); }
+            else if (h > window.innerHeight * 0.5) { this.transcriptPanel.classList.add('expanded'); this.transcriptPanel.classList.remove('collapsed'); this.transcriptPanel.style.height = ''; }
+            else { this.transcriptPanel.classList.remove('collapsed', 'expanded'); this.transcriptPanel.style.height = ''; }
         };
 
-        // Touch events
         handle.addEventListener('touchstart', (e) => onStart(e.touches[0].clientY), { passive: true });
         document.addEventListener('touchmove', (e) => onMove(e.touches[0].clientY), { passive: true });
         document.addEventListener('touchend', onEnd);
-
-        // Click to toggle collapsed on header
         header.addEventListener('click', () => {
             if (window.innerWidth >= 768) return;
-            if (this.transcriptPanel.classList.contains('collapsed')) {
-                this.transcriptPanel.classList.remove('collapsed');
-            } else {
-                this.transcriptPanel.classList.add('collapsed');
-            }
+            this.transcriptPanel.classList.toggle('collapsed');
         });
     }
 
-    // ── Auto-Start (Voice-First) ────────────────────────────
-    // Connects camera, mic, and WebSocket immediately on page load.
-    // The dinner planner form stays as an OPTIONAL overlay — user can type or just talk.
-
+    // ── Auto-Start ──
     async autoStart() {
-        // Camera, WebSocket, and Audio are INDEPENDENT — one failing won't kill the others.
-        // This ensures the app works in voice-only, camera-only, or full mode.
-
         this.updateSplash('Starting camera...');
-        await this.startCamera(); // has its own try/catch
-
+        await this.startCamera();
         this.updateSplash('Connecting to MISE...');
-        try {
-            await this.connectWebSocket();
-        } catch (error) {
+        try { await this.connectWebSocket(); } catch (error) {
             console.error('[MISE] WebSocket failed:', error);
             this.addMessage('system', '❌ Could not connect to MISE. Please refresh the page.');
             this.splashScreen.classList.add('hidden');
-            return; // WebSocket is required — can't continue without it
+            return;
         }
-
         this.updateSplash('Starting microphone...');
-        await this.startAudio(); // has its own try/catch
-
-        this.startTimer();
+        await this.startAudio();
+        this.startSessionTimer();
         this.isCooking = true;
-
-        // Show FAB on mobile
+        // Skip dinner planner — go straight to camera view
+        this.cameraPlaceholder.classList.add('hidden');
         const fab = document.getElementById('fabNext');
-        if (fab && window.innerWidth < 768) {
-            fab.classList.add('visible');
-        }
-
-        // Hide splash — planner stays visible as an overlay on the camera
+        if (fab && window.innerWidth < 768) fab.classList.add('visible');
         this.splashScreen.classList.add('hidden');
     }
 
-    // Legacy start() — only called if autoStart failed and user clicks the button
     async start() {
         this.updateSplash('Requesting camera access...');
         this.splashScreen.classList.remove('hidden');
@@ -275,29 +203,18 @@ class MiseApp {
             await this.connectWebSocket();
             this.updateSplash('Initializing audio...');
             await this.startAudio();
-            this.startTimer();
+            this.startSessionTimer();
             this.cameraPlaceholder.classList.add('hidden');
             this.isCooking = true;
-
             const fab = document.getElementById('fabNext');
-            if (fab && window.innerWidth < 768) {
-                fab.classList.add('visible');
-            }
-
-            setTimeout(() => {
-                this.splashScreen.classList.add('hidden');
-            }, 500);
-
-            if (this.mealPlan) {
-                this.sendMealPlan();
-            }
+            if (fab && window.innerWidth < 768) fab.classList.add('visible');
+            setTimeout(() => this.splashScreen.classList.add('hidden'), 500);
+            if (this.mealPlan) this.sendMealPlan();
         } catch (error) {
             console.error('[MISE] Start error:', error);
             this.updateSplash(`Error: ${error.message}`);
-            this.addMessage('system', `Error: ${error.message}. Please check camera/mic permissions.`);
-            setTimeout(() => {
-                this.splashScreen.classList.add('hidden');
-            }, 2000);
+            this.addMessage('system', `Error: ${error.message}. Please check permissions.`);
+            setTimeout(() => this.splashScreen.classList.add('hidden'), 2000);
         }
     }
 
@@ -305,147 +222,84 @@ class MiseApp {
         if (!this.mealPlan) return;
         const now = new Date();
         const [hours, mins] = this.mealPlan.dinnerTime.split(':');
-        const dinnerDate = new Date();
-        dinnerDate.setHours(parseInt(hours), parseInt(mins), 0);
+        const dinnerDate = new Date(); dinnerDate.setHours(parseInt(hours), parseInt(mins), 0);
         const minutesUntil = Math.round((dinnerDate - now) / 60000);
-
         const planMessage = `I'm making ${this.mealPlan.meal}. I want to eat at ${this.mealPlan.dinnerTime}. That's about ${minutesUntil} minutes from now. Please build me a cooking timeline and walk me through it step by step.`;
-
-        setTimeout(() => {
-            this.sendTextMessage(planMessage);
-        }, 500);
+        setTimeout(() => this.sendTextMessage(planMessage), 500);
+        // Show phase bar
+        if (this.cookingPhaseBar) { this.cookingPhaseBar.classList.add('active'); this.setCookingPhase('prep'); }
     }
 
-    updateSplash(text) {
-        if (this.splashStatus) {
-            this.splashStatus.textContent = text;
-        }
-    }
+    updateSplash(text) { if (this.splashStatus) this.splashStatus.textContent = text; }
 
-    // ── Camera ──────────────────────────────────────────────
-
+    // ── Camera ──
     async startCamera() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
-                },
-                audio: false,
+                video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false
             });
-
             this.cameraFeed.srcObject = stream;
             this.isCameraActive = true;
-
             this.captureCanvas.width = 640;
             this.captureCanvas.height = 480;
-
             this.frameInterval = setInterval(() => this.captureAndSendFrame(), 1000);
         } catch (err) {
             console.warn('[MISE] Camera error:', err.name, err.message);
             this.isCameraActive = false;
-            if (err.name === 'NotAllowedError') {
-                this.addMessage('system',
-                    '📷 Camera access denied. MISE can still help via voice — just talk! ' +
-                    'To enable camera, tap the lock icon in your browser\'s address bar.');
-            } else {
-                this.addMessage('system',
-                    '📷 Camera not available on this device. Voice-only mode active.');
-            }
+            this.addMessage('system', err.name === 'NotAllowedError'
+                ? '📷 Camera access denied. MISE can still help via voice — just talk!'
+                : '📷 Camera not available. Voice-only mode active.');
         }
     }
 
     captureAndSendFrame() {
         if (!this.isCameraActive || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-
         const ctx = this.captureCanvas.getContext('2d');
         ctx.drawImage(this.cameraFeed, 0, 0, 640, 480);
-
         const dataUrl = this.captureCanvas.toDataURL('image/jpeg', 0.6);
-        const base64Data = dataUrl.split(',')[1];
-
-        this.ws.send(JSON.stringify({
-            type: 'video_frame',
-            data: base64Data,
-        }));
+        this.ws.send(JSON.stringify({ type: 'video_frame', data: dataUrl.split(',')[1] }));
     }
 
-    // ── Audio ───────────────────────────────────────────────
-
+    // ── Audio ──
     async startAudio() {
         try {
             this.recordingContext = new AudioContext({ sampleRate: 16000 });
             this.playbackContext = new AudioContext({ sampleRate: 24000 });
-
             await this.recordingContext.resume();
             await this.playbackContext.resume();
-
             this.micStream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    sampleRate: 16000,
-                    channelCount: 1,
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                },
+                audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
             });
-
-            // Set up audio recorder (PCM 16kHz mono)
             await this.recordingContext.audioWorklet.addModule('/static/js/pcm-recorder-processor.js');
             this.micSource = this.recordingContext.createMediaStreamSource(this.micStream);
             this.recorderNode = new AudioWorkletNode(this.recordingContext, 'pcm-recorder-processor');
-
-            // Set up analyser for mic level + barge-in detection
             this.analyserNode = this.recordingContext.createAnalyser();
             this.analyserNode.fftSize = 256;
             this.micSource.connect(this.analyserNode);
-
             this.recorderNode.port.onmessage = (event) => {
-                if (this.ws && this.ws.readyState === WebSocket.OPEN && !this.isMuted) {
-                    this.ws.send(event.data.buffer);
-                }
+                if (this.ws && this.ws.readyState === WebSocket.OPEN && !this.isMuted) this.ws.send(event.data.buffer);
             };
-
             this.micSource.connect(this.recorderNode);
             this.recorderNode.connect(this.recordingContext.destination);
             this.isRecording = true;
-
-            // Set up audio player for agent responses (24kHz)
             await this.playbackContext.audioWorklet.addModule('/static/js/pcm-player-processor.js');
             this.playerNode = new AudioWorkletNode(this.playbackContext, 'pcm-player-processor');
             this.playerNode.connect(this.playbackContext.destination);
-
-            document.getElementById('muteIcon').textContent = '🎙️';
             document.getElementById('micLabel').textContent = 'Listening...';
-
-            // Start mic level animation + barge-in detection
             this.startMicLevel();
         } catch (err) {
             console.warn('[MISE] Audio error:', err.name, err.message);
             this.isRecording = false;
-
-            // Even if mic fails, still set up audio PLAYBACK so agent voice works
             try {
-                if (!this.playbackContext) {
-                    this.playbackContext = new AudioContext({ sampleRate: 24000 });
-                }
+                if (!this.playbackContext) this.playbackContext = new AudioContext({ sampleRate: 24000 });
                 await this.playbackContext.resume();
                 await this.playbackContext.audioWorklet.addModule('/static/js/pcm-player-processor.js');
                 this.playerNode = new AudioWorkletNode(this.playbackContext, 'pcm-player-processor');
                 this.playerNode.connect(this.playbackContext.destination);
-            } catch (playbackErr) {
-                console.warn('[MISE] Playback setup failed too:', playbackErr);
-            }
-
-            if (err.name === 'NotAllowedError') {
-                this.addMessage('system',
-                    '🎙️ Microphone access denied. You can still use text input and hear MISE\'s voice. ' +
-                    'To enable mic, tap the lock icon in your browser\'s address bar.');
-            } else {
-                this.addMessage('system',
-                    '🎙️ Microphone not available. Text input mode active — you can still hear MISE.');
-            }
+            } catch (e) { console.warn('[MISE] Playback failed:', e); }
+            this.addMessage('system', err.name === 'NotAllowedError'
+                ? '🎙️ Mic access denied. Use text input — you can still hear MISE.'
+                : '🎙️ Mic not available. Text input mode active.');
             document.getElementById('micLabel').textContent = 'Mic unavailable';
         }
     }
@@ -453,119 +307,62 @@ class MiseApp {
     startMicLevel() {
         const levelBar = document.getElementById('micLevelBar');
         if (!levelBar || !this.analyserNode) return;
-
         const dataArray = new Uint8Array(this.analyserNode.frequencyBinCount);
-
         const update = () => {
             this.analyserNode.getByteFrequencyData(dataArray);
             let sum = 0;
-            for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
-            }
+            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
             const avg = sum / dataArray.length;
             const pct = Math.min(100, (avg / 128) * 100);
-
-            if (this.isMuted) {
-                levelBar.style.width = '0%';
-            } else {
+            if (this.isMuted) { levelBar.style.width = '0%'; }
+            else {
                 levelBar.style.width = pct + '%';
-
-                // AI ring: listening state when mic is picking up sound
-                if (!this.isAgentSpeaking && avg > 5) {
-                    this.updateAIStatus('listening');
-                } else if (!this.isAgentSpeaking && avg <= 5 && this.aiRingState === 'listening') {
-                    this.updateAIStatus('idle');
-                }
-
-                // ── BARGE-IN DETECTION ──
-                if (avg > this.BARGE_IN_THRESHOLD && this.isAgentSpeaking && !this.bargeInCooldown) {
-                    this.bargeIn();
-                }
+                if (!this.isAgentSpeaking && avg > 5) this.updateAIStatus('listening');
+                else if (!this.isAgentSpeaking && avg <= 5 && this.aiRingState === 'listening') this.updateAIStatus('idle');
+                if (avg > this.BARGE_IN_THRESHOLD && this.isAgentSpeaking && !this.bargeInCooldown) this.bargeIn();
             }
-
             this.micLevelAnimFrame = requestAnimationFrame(update);
         };
-
         update();
     }
 
-    // ── Barge-In (Interruption) ─────────────────────────────
-    // When user starts speaking while agent is speaking:
-    // 1. Flush the audio playback buffer (stop agent voice immediately)
-    // 2. Hide the speaking indicator
-    // 3. Brief cooldown to prevent rapid re-triggering
-
     bargeIn() {
-        console.log('[MISE] Barge-in detected — stopping agent audio');
-
-        // Flush the player buffer
-        if (this.playerNode) {
-            this.playerNode.port.postMessage({ type: 'flush' });
-        }
-
-        // Stop speaking indicator
+        console.log('[MISE] Barge-in detected');
+        if (this.playerNode) this.playerNode.port.postMessage({ type: 'flush' });
         this.isAgentSpeaking = false;
         this.showAgentSpeaking(false);
-
-        // Clear any pending speaking timeout
-        if (this.speakingTimeout) {
-            clearTimeout(this.speakingTimeout);
-            this.speakingTimeout = null;
-        }
-
-        // Cooldown to prevent rapid re-triggering
+        if (this.speakingTimeout) { clearTimeout(this.speakingTimeout); this.speakingTimeout = null; }
         this.bargeInCooldown = true;
-        setTimeout(() => {
-            this.bargeInCooldown = false;
-        }, 2000);
+        setTimeout(() => { this.bargeInCooldown = false; }, 2000);
     }
 
     toggleMute() {
         this.isMuted = !this.isMuted;
         const btn = document.getElementById('muteButton');
-        const icon = document.getElementById('muteIcon');
         const label = document.getElementById('micLabel');
-
         if (this.isMuted) {
             btn.classList.add('muted');
-            icon.textContent = '🔇';
             label.textContent = 'Muted';
-            if (this.micStream) {
-                this.micStream.getAudioTracks().forEach(t => t.enabled = false);
-            }
+            if (this.micStream) this.micStream.getAudioTracks().forEach(t => t.enabled = false);
         } else {
             btn.classList.remove('muted');
-            icon.textContent = '🎙️';
             label.textContent = 'Listening...';
-            if (this.micStream) {
-                this.micStream.getAudioTracks().forEach(t => t.enabled = true);
-            }
+            if (this.micStream) this.micStream.getAudioTracks().forEach(t => t.enabled = true);
         }
     }
 
     playAudio(base64Data) {
         if (!this.playerNode) return;
-
         const binaryData = atob(base64Data);
         const bytes = new Uint8Array(binaryData.length);
-        for (let i = 0; i < binaryData.length; i++) {
-            bytes[i] = binaryData.charCodeAt(i);
-        }
-
+        for (let i = 0; i < binaryData.length; i++) bytes[i] = binaryData.charCodeAt(i);
         const int16 = new Int16Array(bytes.buffer);
         const float32 = new Float32Array(int16.length);
-        for (let i = 0; i < int16.length; i++) {
-            float32[i] = int16[i] / 32768;
-        }
-
+        for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
         this.playerNode.port.postMessage(float32);
-
-        // Track speaking state for barge-in + AI ring
         this.isAgentSpeaking = true;
         this.showAgentSpeaking(true);
         this.updateAIStatus('speaking');
-
-        // Estimate when this chunk finishes playing
         const durationMs = (float32.length / 24000) * 1000;
         if (this.speakingTimeout) clearTimeout(this.speakingTimeout);
         this.speakingTimeout = setTimeout(() => {
@@ -575,45 +372,27 @@ class MiseApp {
         }, durationMs + 200);
     }
 
-    // ── WebSocket ───────────────────────────────────────────
-
+    // ── WebSocket ──
     async connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const url = `${protocol}//${window.location.host}/ws/${this.userId}/${this.sessionId}`;
-
         return new Promise((resolve, reject) => {
             this.ws = new WebSocket(url);
-
             this.ws.onopen = () => {
-                this.isConnected = true;
-                this.wasConnected = true;
-                this.reconnectAttempts = 0;
-                this.updateConnectionStatus(true);
-                this.hideReconnectBanner();
-
-                // Voice-first: no system message clutter — agent will greet via voice
+                this.isConnected = true; this.wasConnected = true; this.reconnectAttempts = 0;
+                this.updateConnectionStatus(true); this.hideReconnectBanner();
                 this.addMessage('system', '🔥 Connected — just start talking! Or type a meal plan above.');
                 resolve();
             };
-
             this.ws.onmessage = (event) => this.handleMessage(event);
-
             this.ws.onclose = () => {
-                this.isConnected = false;
-                this.updateConnectionStatus(false);
-
-                if (this.wasConnected && this.reconnectAttempts < this.maxReconnectAttempts) {
-                    this.attemptReconnect();
-                } else {
-                    this.addMessage('system', '📡 Disconnected. Refresh to reconnect.');
-                }
+                this.isConnected = false; this.updateConnectionStatus(false);
+                if (this.wasConnected && this.reconnectAttempts < this.maxReconnectAttempts) this.attemptReconnect();
+                else this.addMessage('system', '📡 Disconnected. Refresh to reconnect.');
             };
-
             this.ws.onerror = (error) => {
                 console.error('[MISE] WebSocket error:', error);
-                if (!this.wasConnected) {
-                    reject(new Error('WebSocket connection failed'));
-                }
+                if (!this.wasConnected) reject(new Error('WebSocket connection failed'));
             };
         });
     }
@@ -621,120 +400,60 @@ class MiseApp {
     attemptReconnect() {
         this.reconnectAttempts++;
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 16000);
-
-        console.log(`[MISE] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
         this.showReconnectBanner(this.reconnectAttempts);
-
         this.reconnectTimeout = setTimeout(async () => {
             try {
                 this.sessionId = this.generateId();
                 await this.connectWebSocket();
-
-                if (this.isCameraActive && !this.frameInterval) {
-                    this.frameInterval = setInterval(() => this.captureAndSendFrame(), 1000);
-                }
-            } catch (e) {
-                console.error('[MISE] Reconnect failed:', e);
-            }
+                if (this.isCameraActive && !this.frameInterval) this.frameInterval = setInterval(() => this.captureAndSendFrame(), 1000);
+            } catch (e) { console.error('[MISE] Reconnect failed:', e); }
         }, delay);
     }
 
     showReconnectBanner(attempt) {
         let banner = document.querySelector('.reconnect-banner');
-        if (!banner) {
-            banner = document.createElement('div');
-            banner.className = 'reconnect-banner';
-            const header = document.querySelector('.app-header');
-            header.after(banner);
-        }
+        if (!banner) { banner = document.createElement('div'); banner.className = 'reconnect-banner'; document.querySelector('.app-header').after(banner); }
         banner.innerHTML = `<div class="reconnect-spinner"></div> Reconnecting... (attempt ${attempt})`;
         banner.classList.add('active');
     }
-
-    hideReconnectBanner() {
-        const banner = document.querySelector('.reconnect-banner');
-        if (banner) banner.classList.remove('active');
-    }
+    hideReconnectBanner() { const b = document.querySelector('.reconnect-banner'); if (b) b.classList.remove('active'); }
 
     handleMessage(event) {
         try {
             const data = JSON.parse(event.data);
-
             if (data.parts) {
                 for (const part of data.parts) {
                     if (part.type === 'text' && part.text) {
                         this.currentAgentMessage = part.text;
-
-                        if (!this.currentAgentElement) {
-                            this.currentAgentElement = this.addStreamingMessage('agent', this.currentAgentMessage);
-                        } else {
-                            this.updateStreamingMessage(this.currentAgentElement, this.currentAgentMessage);
-                        }
-
-                        // Live caption bar
+                        if (!this.currentAgentElement) this.currentAgentElement = this.addStreamingMessage('agent', this.currentAgentMessage);
+                        else this.updateStreamingMessage(this.currentAgentElement, this.currentAgentMessage);
                         this.updateCaptionBar(this.currentAgentMessage);
-
-                        // Safety keyword detection
-                        const alertKeywords = [
-                            'wash', 'rinse', 'pesticide', 'dirty dozen',
-                            'cross-contamination', 'bacteria', 'danger zone',
-                            'watch out', 'careful', 'burning'
-                        ];
-                        const lower = this.currentAgentMessage.toLowerCase();
-                        if (alertKeywords.some(kw => lower.includes(kw))) {
-                            this.showSafetyAlert(this.currentAgentMessage);
-                        }
-
-                        // Timer parsing
+                        this.detectSafetyAlert(this.currentAgentMessage);
                         this.parseTimerTriggers(this.currentAgentMessage);
+                        this.detectCookingPhase(this.currentAgentMessage);
                     }
-
                     if (part.type === 'input_transcription' && part.text) {
                         this.currentUserMessage = part.text;
-
-                        if (!this.currentUserElement) {
-                            this.currentUserElement = this.addStreamingMessage('user', this.currentUserMessage);
-                        } else {
-                            this.updateStreamingMessage(this.currentUserElement, this.currentUserMessage);
-                        }
+                        if (!this.currentUserElement) this.currentUserElement = this.addStreamingMessage('user', this.currentUserMessage);
+                        else this.updateStreamingMessage(this.currentUserElement, this.currentUserMessage);
                     }
-
-                    if (part.type === 'audio' && part.data) {
-                        this.playAudio(part.data);
-                    }
-
-                    if (part.type === 'function_call' && part.name) {
-                        this.handleFunctionCall(part);
-                    }
-
-                    if (part.type === 'function_response' && part.name) {
-                        this.handleFunctionResponse(part);
-                    }
+                    if (part.type === 'audio' && part.data) this.playAudio(part.data);
+                    if (part.type === 'function_call' && part.name) this.handleFunctionCall(part);
+                    if (part.type === 'function_response' && part.name) this.handleFunctionResponse(part);
                 }
             }
-
-            // Observation indicator
-            if (data.author === 'agent' && data.parts && data.parts.length > 0) {
-                this.flashObservationBadge();
-            }
-
-            // Turn complete — finalize messages
+            if (data.author === 'agent' && data.parts && data.parts.length > 0) this.flashObservationBadge();
             if (data.turn_complete) {
-                this.currentAgentMessage = '';
-                this.currentAgentElement = null;
-                this.currentUserMessage = '';
-                this.currentUserElement = null;
+                this.currentAgentMessage = ''; this.currentAgentElement = null;
+                this.currentUserMessage = ''; this.currentUserElement = null;
             }
-        } catch (e) {
-            console.error('[MISE] Message parse error:', e);
-        }
+        } catch (e) { console.error('[MISE] Message parse error:', e); }
     }
 
     handleFunctionCall(call) {
         if (call.name === 'update_timeline_step') {
             this.updateTimelineUI(call.args);
         } else if (['get_food_safety_data', 'get_produce_safety_data', 'get_nutrition_estimate'].includes(call.name)) {
-            // Show thinking state on AI ring + store pending call
             this.updateAIStatus('thinking');
             this.pendingToolCalls[call.name] = call.args;
             this.showToolCard(call.name, call.args, null);
@@ -746,13 +465,8 @@ class MiseApp {
         const data = response.response || {};
         const args = this.pendingToolCalls[name] || {};
         delete this.pendingToolCalls[name];
-
-        // Clear thinking state if no more pending calls
-        if (Object.keys(this.pendingToolCalls).length === 0 && this.aiRingState === 'thinking') {
+        if (Object.keys(this.pendingToolCalls).length === 0 && this.aiRingState === 'thinking')
             this.updateAIStatus(this.isAgentSpeaking ? 'speaking' : 'idle');
-        }
-
-        // Update the existing card with real data
         this.showToolCard(name, args, data);
     }
 
@@ -760,100 +474,67 @@ class MiseApp {
         const widget = document.getElementById('timelineWidget');
         const list = document.getElementById('timelineSteps');
         if (!widget || !list) return;
-
         widget.classList.remove('hidden');
-
-        // Clean step name for ID
         const cleanName = (args.step_name || 'step').toLowerCase().replace(/[^a-z0-9]/g, '-');
         const stepId = `step-${cleanName}`;
-
-        // Find existing or create new
         let stepEl = document.getElementById(stepId);
         if (!stepEl) {
             stepEl = document.createElement('li');
             stepEl.id = stepId;
             stepEl.className = 'timeline-step';
-            stepEl.innerHTML = `
-                <div class="step-indicator"></div>
-                <div class="step-content">
-                    <h4>${this.escapeHtml(args.step_name || '')}</h4>
-                    <p>${this.escapeHtml(args.step_description || '')}</p>
-                </div>
-            `;
+            stepEl.innerHTML = `<div class="step-indicator"></div><div class="step-content"><h4>${this.escapeHtml(args.step_name || '')}</h4><p>${this.escapeHtml(args.step_description || '')}</p></div>`;
             list.appendChild(stepEl);
         }
-
-        // Update state
         const status = args.status || 'pending';
         stepEl.dataset.status = status;
-
         if (status === 'active') {
             document.querySelectorAll('.timeline-step').forEach(el => el.classList.remove('active'));
-            stepEl.classList.remove('completed');
-            stepEl.classList.add('active');
+            stepEl.classList.remove('completed'); stepEl.classList.add('active');
             stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } else if (status === 'completed') {
-            stepEl.classList.remove('active');
-            stepEl.classList.add('completed');
+            stepEl.classList.remove('active'); stepEl.classList.add('completed');
         } else {
             stepEl.classList.remove('active', 'completed');
         }
     }
 
+    // ── Tool Cards with SVG Icons ──
     showToolCard(toolName, args, resultData) {
         if (!this.toolCardsContainer) return;
-
-        // Card ID to update existing card for same tool
         const cardId = `tool-card-${toolName}`;
         let card = document.getElementById(cardId);
-
-        let icon = '🔍';
-        let source = 'DATA LOOKUP';
-        let title = '';
-        let detail = '';
-        let badge = '';
+        let icon, source, title, detail, badge, cardClass;
 
         if (toolName === 'get_food_safety_data') {
-            icon = '🌡️';
-            source = 'USDA FOOD SAFETY';
+            icon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e85d3a" stroke-width="2"><path d="M14 4v10.54a4 4 0 11-4 0V4a2 2 0 014 0z"/></svg>';
+            source = 'USDA FOOD SAFETY'; cardClass = 'card-safety';
             const item = args.food_item || 'Food';
             if (resultData && resultData.safe_internal_temp_f) {
                 title = `${item} → ${resultData.safe_internal_temp_f}°F`;
-                detail = resultData.notes || resultData.tip || `Safe internal temperature`;
-                badge = `<span class="tool-card-badge badge-safe">✓ SAFE ABOVE ${resultData.safe_internal_temp_f}°F</span>`;
+                detail = resultData.notes || resultData.tip || 'Safe internal temperature';
+                const pct = Math.min(100, (resultData.safe_internal_temp_f / 212) * 100);
+                badge = `<div class="temp-gauge"><div class="temp-bar-track"><div class="temp-bar-fill" style="width:${pct}%"></div></div><div class="temp-value">${resultData.safe_internal_temp_f}°F</div></div>`;
             } else if (resultData) {
-                title = item;
-                detail = resultData.danger_zone || resultData.note || 'Follow food safety guidelines';
+                title = item; detail = resultData.danger_zone || resultData.note || 'Follow food safety guidelines';
                 badge = '<span class="tool-card-badge badge-safe">✓ GUIDELINES</span>';
-            } else {
-                title = `Checking ${item}...`;
-                detail = 'Retrieving safe temperature data';
-            }
+            } else { title = `Checking ${item}...`; detail = 'Retrieving safe temperature data'; badge = ''; }
         } else if (toolName === 'get_produce_safety_data') {
-            icon = '🥬';
-            source = 'EWG PRODUCE SAFETY';
+            icon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5ab87a" stroke-width="2"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66L12 14l5-3-2-3z"/><path d="M20.59 3.41A2 2 0 0117.17 3L12 8.17"/></svg>';
+            source = 'EWG PRODUCE SAFETY'; cardClass = 'card-produce';
             const item = args.produce_item || 'Produce';
             if (resultData) {
-                title = item;
-                detail = resultData.wash_method || 'Rinse thoroughly';
-                if (resultData.is_dirty_dozen) {
-                    badge = '<span class="tool-card-badge badge-danger">⚠ DIRTY DOZEN</span>';
-                } else if (resultData.is_clean_fifteen) {
-                    badge = '<span class="tool-card-badge badge-safe">✓ CLEAN FIFTEEN</span>';
-                }
-            } else {
-                title = `Checking ${item}...`;
-                detail = 'Looking up wash method';
-            }
+                title = item; detail = resultData.wash_method || 'Rinse thoroughly';
+                if (resultData.is_dirty_dozen) badge = '<span class="tool-card-badge badge-danger">⚠ DIRTY DOZEN</span>';
+                else if (resultData.is_clean_fifteen) badge = '<span class="tool-card-badge badge-safe">✓ CLEAN FIFTEEN</span>';
+                else badge = '';
+            } else { title = `Checking ${item}...`; detail = 'Looking up wash method'; badge = ''; }
         } else if (toolName === 'get_nutrition_estimate') {
-            icon = '📊';
-            source = 'USDA NUTRITION';
+            icon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c9a96e" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>';
+            source = 'USDA NUTRITION'; cardClass = 'card-nutrition';
             const item = args.food_item || 'Food';
             if (resultData && (resultData.calories_per_serving || resultData.calories)) {
                 const cal = resultData.calories_per_serving || resultData.calories;
-                const protein = resultData.protein_g || 0;
-                const carbs = resultData.carbs_g || 0;
-                const fat = resultData.fat_g || 0;
+                const protein = resultData.protein_g || 0, carbs = resultData.carbs_g || 0, fat = resultData.fat_g || 0;
                 title = `${item} — ${cal} cal`;
                 const serving = resultData.serving_size || '';
                 detail = serving ? `Per ${serving}` : '';
@@ -862,82 +543,96 @@ class MiseApp {
                     <div class="macro-bar macro-carbs"><div class="macro-bar-fill" style="width:${Math.min(100, carbs)}%"></div><div class="macro-bar-label">${carbs}g C</div></div>
                     <div class="macro-bar macro-fat"><div class="macro-bar-fill" style="width:${Math.min(100, fat * 2)}%"></div><div class="macro-bar-label">${fat}g F</div></div>
                 </div>`;
-            } else if (resultData) {
-                title = item;
-                detail = resultData.note || resultData.tip || 'Estimated nutrition';
-            } else {
-                title = `Checking ${item}...`;
-                detail = 'Looking up nutrition data';
-            }
-        }
+            } else if (resultData) { title = item; detail = resultData.note || resultData.tip || 'Estimated nutrition'; badge = ''; }
+            else { title = `Checking ${item}...`; detail = 'Looking up nutrition data'; badge = ''; }
+        } else { icon = ''; source = 'DATA'; cardClass = ''; title = ''; detail = ''; badge = ''; }
 
-        // Build or update card
         if (!card) {
             card = document.createElement('div');
             card.id = cardId;
-            card.className = 'tool-data-card';
+            card.className = `tool-data-card ${cardClass}`;
             this.toolCardsContainer.appendChild(card);
-
-            // Limit to 3 cards max
-            while (this.toolCardsContainer.children.length > 3) {
-                this.toolCardsContainer.removeChild(this.toolCardsContainer.firstChild);
-            }
+            while (this.toolCardsContainer.children.length > 3) this.toolCardsContainer.removeChild(this.toolCardsContainer.firstChild);
         }
+        card.innerHTML = `<div class="tool-card-header"><span class="tool-card-icon">${icon}</span><span class="tool-card-source">${source}</span></div><div class="tool-card-title">${this.escapeHtml(title)}</div>${detail ? `<div class="tool-card-detail">${this.escapeHtml(detail)}</div>` : ''}${badge}`;
 
-        card.innerHTML = `
-            <div class="tool-card-header">
-                <span class="tool-card-icon">${icon}</span>
-                <span class="tool-card-source">${source}</span>
-            </div>
-            <div class="tool-card-title">${this.escapeHtml(title)}</div>
-            ${detail ? `<div class="tool-card-detail">${this.escapeHtml(detail)}</div>` : ''}
-            ${badge}
-        `;
-
-        // Auto-dismiss after 8 seconds (reset timer if updated)
         if (card._dismissTimer) clearTimeout(card._dismissTimer);
         card._dismissTimer = setTimeout(() => {
             card.classList.add('dismissing');
             setTimeout(() => card.remove(), 400);
-        }, resultData ? 8000 : 15000); // longer timeout while waiting for result
+        }, resultData ? 8000 : 15000);
     }
 
-    // ── AI Status Indicator ─────────────────────────────────
+    // ── Cooking Phase Detection ──
+    detectCookingPhase(text) {
+        const lower = text.toLowerCase();
+        for (const [phase, keywords] of Object.entries(this.phaseKeywords)) {
+            for (const kw of keywords) {
+                if (lower.includes(kw)) { this.setCookingPhase(phase); return; }
+            }
+        }
+    }
 
+    setCookingPhase(phase) {
+        if (phase === this.currentPhase) return;
+        const phases = ['prep', 'cook', 'plate', 'serve'];
+        const newIdx = phases.indexOf(phase);
+        const oldIdx = this.currentPhase ? phases.indexOf(this.currentPhase) : -1;
+        if (newIdx < oldIdx) return; // Don't go backwards
+        this.currentPhase = phase;
+        if (this.cookingPhaseBar) this.cookingPhaseBar.classList.add('active');
+
+        document.querySelectorAll('.phase-item').forEach(el => {
+            const p = el.dataset.phase;
+            const pIdx = phases.indexOf(p);
+            el.classList.remove('active', 'completed');
+            if (pIdx < newIdx) el.classList.add('completed');
+            else if (pIdx === newIdx) el.classList.add('active');
+        });
+        // Fill connectors
+        document.querySelectorAll('.phase-connector').forEach((el, i) => {
+            el.classList.toggle('filled', i < newIdx);
+        });
+    }
+
+    // ── AI Status ──
     updateAIStatus(state) {
         if (!this.aiStatusRing || state === this.aiRingState) return;
         this.aiStatusRing.classList.remove('idle', 'listening', 'speaking', 'thinking');
         this.aiStatusRing.classList.add(state);
         this.aiRingState = state;
+        const label = document.getElementById('orbLabel');
+        if (label) {
+            const labels = { idle: 'MISE', listening: 'LISTENING', speaking: 'SPEAKING', thinking: 'THINKING' };
+            label.textContent = labels[state] || 'MISE';
+        }
     }
 
-    // ── Live Caption Bar ────────────────────────────────────
-
+    // ── Caption Bar ──
     updateCaptionBar(text) {
         if (!this.captionBar || !this.captionText) return;
-
-        // Show last portion of text (caption-style)
         const maxLen = 120;
-        const display = text.length > maxLen ? '...' + text.slice(-maxLen) : text;
-        this.captionText.textContent = display;
+        this.captionText.textContent = text.length > maxLen ? '...' + text.slice(-maxLen) : text;
         this.captionBar.classList.add('active');
-
-        // Auto-hide after agent stops
         if (this.captionTimeout) clearTimeout(this.captionTimeout);
-        this.captionTimeout = setTimeout(() => {
-            this.captionBar.classList.remove('active');
-        }, 4000);
+        this.captionTimeout = setTimeout(() => this.captionBar.classList.remove('active'), 4000);
     }
 
-    // ── Timer Parsing ───────────────────────────────────────
+    // ── Viewfinder + Observation ──
+    flashObservationBadge() {
+        if (this.observationBadge) {
+            this.observationBadge.classList.add('active');
+            setTimeout(() => this.observationBadge.classList.remove('active'), 3000);
+        }
+        if (this.viewfinder) {
+            this.viewfinder.classList.add('scanning');
+            setTimeout(() => this.viewfinder.classList.remove('scanning'), 2000);
+        }
+    }
 
+    // ── Multiple Concurrent Timers ──
     parseTimerTriggers(text) {
-        const patterns = [
-            /(\d+)\s*minutes?\b/gi,
-            /timer\s*(?:for\s*)?(\d+)/gi,
-            /(\d+)\s*min\b/gi,
-        ];
-
+        const patterns = [/(\d+)\s*minutes?\b/gi, /timer\s*(?:for\s*)?(\d+)/gi, /(\d+)\s*min\b/gi];
         for (const pattern of patterns) {
             const match = pattern.exec(text);
             if (match && match[1]) {
@@ -954,86 +649,77 @@ class MiseApp {
     }
 
     startCookingTimer(minutes, label) {
-        if (this.cookingTimerInterval) {
-            clearInterval(this.cookingTimerInterval);
+        const id = ++this.timerIdCounter;
+        const seconds = minutes * 60;
+
+        // Check for duplicate label — update existing instead
+        for (const [existingId, t] of this.timers) {
+            if (t.label === label) { this.removeCookingTimer(existingId); break; }
         }
 
-        this.cookingTimerSeconds = minutes * 60;
-        const timerWidget = document.getElementById('timerWidget');
-        const timerTime = document.getElementById('timerTime');
-        const timerLabel = document.getElementById('timerLabel');
+        const widget = document.createElement('div');
+        widget.className = 'timer-widget';
+        widget.id = `timer-${id}`;
+        widget.innerHTML = `
+            <div class="timer-display">
+                <span class="timer-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+                <span class="timer-time" id="timer-time-${id}">${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}</span>
+                <span class="timer-label">${this.escapeHtml(label)}</span>
+            </div>
+            <button class="timer-dismiss" onclick="window.miseApp.removeCookingTimer(${id})">✕</button>
+        `;
+        this.timersContainer.appendChild(widget);
 
-        timerLabel.textContent = label;
-        timerWidget.classList.add('active');
-
-        const updateDisplay = () => {
-            const mins = Math.floor(this.cookingTimerSeconds / 60).toString().padStart(2, '0');
-            const secs = (this.cookingTimerSeconds % 60).toString().padStart(2, '0');
-            timerTime.textContent = `${mins}:${secs}`;
-
-            if (this.cookingTimerSeconds <= 30 && this.cookingTimerSeconds > 0) {
-                timerTime.classList.add('urgent');
-            } else {
-                timerTime.classList.remove('urgent');
-            }
-        };
-
-        updateDisplay();
-
-        this.cookingTimerInterval = setInterval(() => {
-            this.cookingTimerSeconds--;
-
-            if (this.cookingTimerSeconds <= 0) {
-                clearInterval(this.cookingTimerInterval);
-                this.cookingTimerInterval = null;
-                timerTime.textContent = '00:00';
-                timerTime.classList.add('urgent');
-
-                if (navigator.vibrate) {
-                    navigator.vibrate([200, 100, 200, 100, 200]);
-                }
-
+        let remaining = seconds;
+        const interval = setInterval(() => {
+            remaining--;
+            const timeEl = document.getElementById(`timer-time-${id}`);
+            if (!timeEl) { clearInterval(interval); return; }
+            const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+            const s = String(remaining % 60).padStart(2, '0');
+            timeEl.textContent = `${m}:${s}`;
+            if (remaining <= 30 && remaining > 0) timeEl.classList.add('urgent');
+            if (remaining <= 0) {
+                clearInterval(interval);
+                timeEl.textContent = '00:00';
+                timeEl.classList.add('urgent');
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
                 this.addMessage('system', `⏱️ Timer done! (${label})`);
-                setTimeout(() => this.dismissTimer(), 10000);
-            } else {
-                updateDisplay();
+                setTimeout(() => this.removeCookingTimer(id), 10000);
             }
         }, 1000);
-    }
 
-    dismissTimer() {
-        if (this.cookingTimerInterval) {
-            clearInterval(this.cookingTimerInterval);
-            this.cookingTimerInterval = null;
+        this.timers.set(id, { interval, label, widget });
+
+        // Limit to 4 timers max
+        if (this.timers.size > 4) {
+            const oldest = this.timers.keys().next().value;
+            this.removeCookingTimer(oldest);
         }
-        const timerWidget = document.getElementById('timerWidget');
-        timerWidget.classList.remove('active');
-        const timerTime = document.getElementById('timerTime');
-        timerTime.classList.remove('urgent');
     }
 
-    // ── Observation Badge ───────────────────────────────────
-
-    flashObservationBadge() {
-        if (!this.observationBadge) return;
-        this.observationBadge.classList.add('active');
-        setTimeout(() => {
-            this.observationBadge.classList.remove('active');
-        }, 3000);
+    removeCookingTimer(id) {
+        const timer = this.timers.get(id);
+        if (!timer) return;
+        clearInterval(timer.interval);
+        timer.widget.remove();
+        this.timers.delete(id);
     }
 
+    // ── Safety Detection ──
+    detectSafetyAlert(text) {
+        const keywords = ['wash', 'rinse', 'pesticide', 'dirty dozen', 'cross-contamination', 'bacteria', 'danger zone', 'watch out', 'careful', 'burning'];
+        const lower = text.toLowerCase();
+        if (keywords.some(kw => lower.includes(kw))) this.showSafetyAlert(text);
+    }
+
+    // ── UI Methods ──
     addStreamingMessage(role, text) {
         this.removeTypingIndicator();
-
         const div = document.createElement('div');
         div.className = `message ${role}-message`;
         const label = role === 'agent' ? '🔥 MISE' : role === 'user' ? '👤 You' : '📌 System';
-        div.innerHTML = `
-            <div class="message-label">${label}</div>
-            <div class="message-content">
-                <p>${this.escapeHtml(text)}</p>
-            </div>
-        `;
+        div.innerHTML = `<div class="message-label">${label}</div><div class="message-content"><p>${this.escapeHtml(text)}</p></div>`;
         this.transcriptMessages.appendChild(div);
         this.transcriptMessages.scrollTop = this.transcriptMessages.scrollHeight;
         return div;
@@ -1041,50 +727,27 @@ class MiseApp {
 
     updateStreamingMessage(element, text) {
         const p = element.querySelector('.message-content p');
-        if (p) {
-            p.textContent = text;
-            this.transcriptMessages.scrollTop = this.transcriptMessages.scrollHeight;
-        }
+        if (p) { p.textContent = text; this.transcriptMessages.scrollTop = this.transcriptMessages.scrollHeight; }
     }
-
-    // ── Typing Indicator ────────────────────────────────────
 
     showTypingIndicator() {
         if (document.querySelector('.typing-indicator')) return;
         const div = document.createElement('div');
         div.className = 'message agent-message';
-        div.innerHTML = `
-            <div class="message-label">🔥 MISE</div>
-            <div class="message-content typing-indicator">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-            </div>
-        `;
+        div.innerHTML = `<div class="message-label">🔥 MISE</div><div class="message-content typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
         this.transcriptMessages.appendChild(div);
         this.transcriptMessages.scrollTop = this.transcriptMessages.scrollHeight;
     }
 
     removeTypingIndicator() {
-        const indicator = document.querySelector('.typing-indicator');
-        if (indicator) {
-            const parent = indicator.closest('.message');
-            if (parent) parent.remove();
-        }
+        const ind = document.querySelector('.typing-indicator');
+        if (ind) { const p = ind.closest('.message'); if (p) p.remove(); }
     }
 
-    // ── UI Methods ──────────────────────────────────────────
-
-    sendText() {
-        const text = this.textInput.value.trim();
-        if (!text) return;
-        this.sendTextMessage(text);
-        this.textInput.value = '';
-    }
+    sendText() { const text = this.textInput.value.trim(); if (!text) return; this.sendTextMessage(text); this.textInput.value = ''; }
 
     sendTextMessage(text) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-
         this.ws.send(JSON.stringify({ type: 'text', text }));
         this.addMessage('user', text);
         this.showTypingIndicator();
@@ -1092,71 +755,41 @@ class MiseApp {
 
     addMessage(role, text) {
         this.removeTypingIndicator();
-
         const div = document.createElement('div');
         div.className = `message ${role}-message`;
         const label = role === 'agent' ? '🔥 MISE' : role === 'user' ? '👤 You' : '📌 System';
-
-        div.innerHTML = `
-            <div class="message-label">${label}</div>
-            <div class="message-content">
-                <p>${this.escapeHtml(text)}</p>
-            </div>
-        `;
-
+        div.innerHTML = `<div class="message-label">${label}</div><div class="message-content"><p>${this.escapeHtml(text)}</p></div>`;
         this.transcriptMessages.appendChild(div);
         this.transcriptMessages.scrollTop = this.transcriptMessages.scrollHeight;
     }
 
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+    escapeHtml(text) { const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
 
     showSafetyAlert(message) {
         const short = message.length > 120 ? message.substring(0, 120) + '...' : message;
         this.safetyMessage.textContent = short;
         this.safetyOverlay.classList.add('active');
-
-        setTimeout(() => {
-            this.safetyOverlay.classList.remove('active');
-        }, 5000);
+        setTimeout(() => this.safetyOverlay.classList.remove('active'), 5000);
     }
 
     showAgentSpeaking(active) {
-        if (active) {
-            this.agentSpeaking.classList.add('active');
-        } else {
-            this.agentSpeaking.classList.remove('active');
-        }
+        if (active) this.agentSpeaking.classList.add('active');
+        else this.agentSpeaking.classList.remove('active');
     }
 
     updateConnectionStatus(connected) {
-        const statusEl = this.connectionStatus;
-        const textEl = statusEl.querySelector('.status-text');
-
-        if (connected) {
-            statusEl.classList.add('connected');
-            textEl.textContent = 'Connected';
-        } else {
-            statusEl.classList.remove('connected');
-            textEl.textContent = 'Disconnected';
-        }
+        const textEl = this.connectionStatus.querySelector('.status-text');
+        if (connected) { this.connectionStatus.classList.add('connected'); textEl.textContent = 'Connected'; }
+        else { this.connectionStatus.classList.remove('connected'); textEl.textContent = 'Disconnected'; }
     }
 
-    startTimer() {
+    startSessionTimer() {
         this.sessionStartTime = Date.now();
-        this.timerInterval = setInterval(() => {
+        setInterval(() => {
             const elapsed = Math.floor((Date.now() - this.sessionStartTime) / 1000);
-            const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
-            const secs = (elapsed % 60).toString().padStart(2, '0');
-            this.sessionTimer.textContent = `${mins}:${secs}`;
+            this.sessionTimer.textContent = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
         }, 1000);
     }
 }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    window.miseApp = new MiseApp();
-});
+document.addEventListener('DOMContentLoaded', () => { window.miseApp = new MiseApp(); });
