@@ -1,7 +1,7 @@
 # MISE — Comprehensive Agent Handoff
 
-> **Last updated:** 2026-02-27 22:23 PST  
-> **Status:** Phase E code complete (context-aware culinary AI). Demo video + submit remaining.  
+> **Last updated:** 2026-03-01 20:29 PST  
+> **Status:** Phase G complete (multiagent architecture). Demo video + submit remaining.  
 > **Live URL:** https://mise-965205106736.us-central1.run.app  
 > **GitHub:** https://github.com/gorajin/mise  
 > **Cloud Run:** Project `gen-lang-client-0991814371`, region `us-central1`
@@ -12,7 +12,7 @@
 
 MISE (Live Kitchen Intelligence) is a **hands-free dinner coordinator** built for the **Gemini Live Agent Challenge** ($25K prize). The user tells MISE what they're cooking and when they want to eat → MISE builds a timeline, walks them through each step via voice, watches the kitchen through the camera, and proactively interrupts when it sees something important.
 
-**Core differentiator:** The agent is *proactive* — it observes the camera feed every 15-25 seconds and speaks up without being asked. This is not a chatbot — it's a live kitchen co-pilot.
+**Core differentiator:** The system uses a **multiagent architecture** — an Orchestrator routes to 4 specialist sub-agents (Coordinator, Scientist, Safety/Nutrition, Recipe Explorer) for focused, expert responses. The agents observe the camera feed every 15-25 seconds and speak up without being asked. This is not a chatbot — it's a live kitchen co-pilot.
 
 ---
 
@@ -117,12 +117,30 @@ Implemented the full Phase E spec from the director's handoff — surgical injec
 - **Cache bust:** `app.js?v=7` → `app.js?v=8`
 - **34/34 tests pass** — 25 original + 9 new (4 for observation interval, 5 for recipe tool)
 
+### Session 9 — Mar 1 20:29 PST — Phase G: Multiagent Architecture
+**Files modified:** `agent.py`, `main.py`, `app.js`, `style.css`, `test_tools.py`, `HANDOFF.md`
+
+Complete decomposition of the monolithic single-agent into a **multiagent hierarchy** using ADK's native `sub_agents` with LLM-driven `transfer_to_agent()` delegation. This fundamentally improves UX by giving each specialist a focused ≤60-line prompt with full LLM attention — no more context pollution from a 230-line monolith.
+
+- **Orchestrator (`mise_agent`):** Root agent. Greets the user, listens for intent, routes to the right specialist. Controls autonomous gaze via `set_observation_interval`. ~40-line prompt.
+- **Dinner Coordinator (`dinner_coordinator`):** Timeline management, step-by-step pacing, timer announcements, parallel task coordination. Tools: `update_timeline_step`, `set_observation_interval`. ~45-line prompt.
+- **Food Scientist (`food_scientist`):** Kenji-style food science — Maillard, emulsions, viscosity, yeast, visual verification from camera. Tools: `google_search`. ~50-line prompt.
+- **Safety & Nutrition (`safety_nutrition`):** USDA temps, produce washing, macros, dietary coaching. Tools: `get_food_safety_data`, `get_produce_safety_data`, `get_nutrition_estimate`. ~40-line prompt.
+- **Recipe Explorer (`recipe_explorer`):** TV co-watching, recipe reverse-engineering, grocery list generation. Tools: `analyze_and_recreate_recipe`, `google_search`. ~35-line prompt.
+- **Observation Loop Updated:** Prompts now instruct the Orchestrator to route camera observations to the appropriate specialist (e.g., produce on counter → `safety_nutrition`, technique issue → `food_scientist`).
+- **Agent Transfer Events:** Backend forwards `transfer_to_agent` function calls to the frontend as `agent_transfer` events.
+- **Active Agent Indicator:** Glassmorphic badge below the AI Status Orb shows which specialist is currently active (emoji + name, color-coded). Badge auto-hides when returning to Orchestrator.
+- **Activity Log:** Transfer events logged with 🔀 icon showing the active specialist.
+- **39/39 tests pass** — 34 original + 5 new agent construction tests (sub-agent count, names, descriptions, tool assignments, model)
+
 ---
 
 ## 3. Current Feature Matrix
 
 | Component | Status | Details |
 |-----------|--------|---------|
+| **Multiagent Architecture** | ✅ | **Orchestrator + 4 specialist sub-agents via ADK `sub_agents`** |
+| Active Agent Indicator | ✅ | Glassmorphic badge on orb showing active specialist |
 | FastAPI server | ✅ | Cloud Run deployed |
 | WebSocket connection | ✅ | Auto-reconnect (exponential backoff, 10 attempts) |
 | Camera streaming | ✅ | 1fps JPEG via getUserMedia → WebSocket |
@@ -132,24 +150,24 @@ Implemented the full Phase E spec from the director's handoff — surgical injec
 | Voice-first auto-connect | ✅ | Camera, mic, WS connect on page load |
 | Screen Wake Lock | ✅ | `navigator.wakeLock` with `visibilitychange` re-acquisition |
 | Text transcription | ✅ | Both input and output transcription streaming |
-| Observation loop | ✅ | Every 15-25 seconds, rotates 3 prompts |
+| Observation loop | ✅ | Every 15-25 seconds, rotates 3 prompts, routes to specialists |
 | Dynamic camera polling | ✅ | Agent-controlled via `set_observation_interval` tool |
-| 7 grounding tools | ✅ | USDA safety + nutrition, EWG produce, Google Search, timeline, observation interval, recipe reverse-engineering |
+| 7 grounding tools | ✅ | Partitioned across Orchestrator + 4 sub-agents |
 | Dinner Timeline Widget | ✅ | Collapsible, step indicators, animations |
-| AI Status Orb | ✅ | Glassmorphic, 4 animated states |
+| AI Status Orb | ✅ | Glassmorphic, 4 animated states + agent badge |
 | Tool Data Cards | ✅ | SVG icons, temp gauge, macro bars |
 | Live Caption Bar | ✅ | Auto-fading subtitles on camera feed |
 | Cooking Phase Bar | ✅ | PREP → COOK → PLATE → SERVE auto-detection |
 | Multiple Concurrent Timers | ✅ | Up to 4 with individual dismiss |
 | Camera Viewfinder | ✅ | Animated corners, glow on observation |
 | Timer completion chime | ✅ | 3-note Web Audio API chord (C5-E5-G5) |
-| Agent Activity Log | ✅ | Collapsible glassmorphic panel, logs tool calls/scans |
+| Agent Activity Log | ✅ | Logs tool calls, scans, and agent transfers |
 | Mobile bottom-sheet | ✅ | Draggable transcript |
 | Mute toggle | ✅ | Disables mic tracks |
 | PWA manifest | ✅ | Installable |
 | Splash screen | ✅ | Animated SVG flame + particles |
 | Permission denial handling | ✅ | Camera/mic/WS independent |
-| pytest suite | ✅ | 34/34 passing |
+| pytest suite | ✅ | **39/39 passing** |
 | Cloud Run deployment | ✅ | Live URL working |
 | Devpost content | ✅ | Ready to paste |
 
@@ -160,6 +178,7 @@ Implemented the full Phase E spec from the director's handoff — surgical injec
 | Priority | Issue | Details |
 |----------|-------|---------|
 | P2 | Barge-in threshold tuning | `BARGE_IN_THRESHOLD` (default 15) and `SUSTAINED_FRAMES_REQUIRED` (default 6) may need tuning per environment |
+| P2 | Multiagent transfer latency | LLM-driven `transfer_to_agent()` adds a small latency spike on first routing — subsequent transfers are faster |
 | P3 | Recipe card UI | `analyze_and_recreate_recipe` results go to Activity Log only — no dedicated SVG card yet |
 
 ---
@@ -167,9 +186,9 @@ Implemented the full Phase E spec from the director's handoff — surgical injec
 ## 5. Remaining Work
 
 ### Phase F: Demo & Submit
-- [ ] **Test on phone** with real kitchen scenario (verify Wake Lock, sustained barge-in, dynamic camera interval)
-- [ ] **Record 4-minute demo video** (script ready in `demo_script.md`)
-- [ ] **Submit on Devpost** (content ready in `DEVPOST.md`)
+- [ ] **Test on phone** with real kitchen scenario (verify multiagent routing, Wake Lock, barge-in, dynamic camera interval)
+- [ ] **Record 4-minute demo video** (script ready in `demo_script.md` — update to showcase multiagent transfers)
+- [ ] **Submit on Devpost** (content ready in `DEVPOST.md` — update to mention multiagent architecture)
 - [ ] **Push to public GitHub** (repo: https://github.com/gorajin/mise)
 - [ ] **Redeploy latest changes** to Cloud Run
 
@@ -177,6 +196,8 @@ Implemented the full Phase E spec from the director's handoff — surgical injec
 - [ ] Smart glasses integration (architecture supports it)
 - [ ] Dedicated recipe card UI with SVG icon for `analyze_and_recreate_recipe`
 - [ ] Backend observation loop interval also made dynamic via `set_observation_interval`
+- [ ] Agent handoff animations (visual transition when switching specialists)
+- [ ] Per-agent conversation memory (specialist remembers dietary goals across transfers)
 
 ---
 
@@ -184,12 +205,12 @@ Implemented the full Phase E spec from the director's handoff — surgical injec
 
 | Criteria | Score | Evidence |
 |----------|-------|----------|
-| Quality Application | 9/10 | 34 tests, graceful error handling, premium UI, clean architecture |
-| Leveraging Gemini/ADK | 10/10 | bidiGenerateContent, 7 tools, Live API, observation loop, autonomous gaze control |
+| Quality Application | 9/10 | 39 tests, graceful error handling, premium UI, multiagent architecture |
+| Leveraging Gemini/ADK | 10/10 | bidiGenerateContent, 7 tools, Live API, **ADK `sub_agents` multiagent**, observation loop, autonomous gaze control |
 | Real-World Impact | 8/10 | Every cook needs this — fully hands-free |
-| Novelty | 9/10 | Proactive observation loop + visible agent activity log |
+| Novelty | 10/10 | **Multiagent with LLM-driven routing** + proactive observation loop + visible agent activity log |
 | Multimodal | 9/10 | Camera + mic + voice + barge-in |
-| Agentic Workflows | 10/10 | Dinner timeline, phase tracking, multiple timers, tool cards, activity log |
+| Agentic Workflows | 10/10 | **Orchestrator + 4 specialist sub-agents**, dinner timeline, phase tracking, multiple timers, tool cards, activity log |
 | Google Cloud | 8/10 | Cloud Run deployment, live URL |
 | Demo | 0/10 | ⚠️ **No demo video yet** |
 
@@ -200,17 +221,16 @@ Implemented the full Phase E spec from the director's handoff — surgical injec
 ```
 Browser (Phone) ──WebSocket──▶ FastAPI Server ──ADK bidi──▶ Gemini 2.5 Flash Live API
   ├── Camera (1fps JPEG)              │
-  ├── Mic (PCM 16kHz)                 ├── Observation Loop (proactive, 15-25s)
-  ├── Audio Player (24kHz + GainNode) ├── get_food_safety_data (USDA)
-  ├── Barge-in (sustained + ducking)  ├── get_produce_safety_data (EWG)
-  ├── Wake Lock (screen alive)        ├── get_nutrition_estimate (USDA)
-  ├── AI Status Orb (glassmorphic)    ├── update_timeline_step
-  ├── Tool Data Cards (SVG)           ├── set_observation_interval
-  ├── Viewfinder Corners              ├── analyze_and_recreate_recipe
-  │                                   └── google_search (grounding)
-  ├── Cooking Phase Bar
-  ├── Multiple Timers (Map)
-  ├── Caption Bar
+  ├── Mic (PCM 16kHz)                 ├── 🎯 Orchestrator (mise_agent)
+  ├── Audio Player (24kHz + GainNode) │     ├── 🍳 dinner_coordinator
+  ├── Barge-in (sustained + ducking)  │     │     Tools: update_timeline_step, set_observation_interval
+  ├── Wake Lock (screen alive)        │     ├── 🔬 food_scientist
+  ├── AI Status Orb + Agent Badge     │     │     Tools: google_search
+  ├── Tool Data Cards (SVG)           │     ├── 🛡️ safety_nutrition
+  ├── Viewfinder Corners              │     │     Tools: get_food_safety_data, get_produce_safety_data, get_nutrition_estimate
+  ├── Cooking Phase Bar               │     └── 📺 recipe_explorer
+  ├── Multiple Timers (Map)           │           Tools: analyze_and_recreate_recipe, google_search
+  ├── Caption Bar                     └── Observation Loop (proactive, 15-25s, routes to specialists)
   └── Dinner Timeline
 ```
 
@@ -223,8 +243,8 @@ mise/
 ├── app/
 │   ├── main.py                  # FastAPI + WebSocket + observation loop
 │   ├── mise_agent/
-│   │   ├── agent.py             # Agent persona + system prompt
-│   │   ├── tools.py             # 5 grounding tools + update_timeline_step + set_observation_interval + analyze_and_recreate_recipe
+│   │   ├── agent.py             # Orchestrator + 4 specialist sub-agents (multiagent)
+│   │   ├── tools.py             # 7 grounding tools (partitioned across sub-agents)
 │   │   └── __init__.py
 │   ├── data/
 │   │   ├── food_safety.json     # USDA safe cooking temps
@@ -232,14 +252,14 @@ mise/
 │   │   └── nutrition.json       # Calories, macros, healthy swaps
 │   └── static/
 │       ├── index.html           # Main UI (orb, viewfinder, activity log)
-│       ├── css/style.css        # Premium dark kitchen theme
+│       ├── css/style.css        # Premium dark kitchen theme + agent badge
 │       ├── manifest.json        # PWA
 │       └── js/
-│           ├── app.js           # WebSocket + camera + audio + UI logic
+│           ├── app.js           # WebSocket + camera + audio + UI + multiagent tracking
 │           ├── pcm-recorder-processor.js
 │           └── pcm-player-processor.js
 ├── tests/
-│   └── test_tools.py            # 34 pytest tests
+│   └── test_tools.py            # 39 pytest tests (tools + agent construction)
 ├── Dockerfile
 ├── pyproject.toml
 ├── demo_script.md               # 4-minute demo video script

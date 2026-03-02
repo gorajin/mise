@@ -987,6 +987,47 @@ body {
     box-shadow: 0 0 20px 4px rgba(201, 169, 110, 0.2);
 }
 
+/* ═══ AGENT BADGE (Multiagent Indicator) ═══ */
+.agent-badge {
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--agent-color, rgba(212, 132, 90, 0.3));
+    border-radius: var(--radius-full);
+    padding: 3px 10px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.agent-badge.active {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    animation: badge-appear 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes badge-appear {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(6px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+}
+
 /* ═══ TOOL DATA CARDS ═══ */
 .tool-cards-container {
     position: absolute;

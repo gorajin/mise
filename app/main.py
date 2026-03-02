@@ -176,9 +176,10 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                 run_config=run_config,
             ):
                 # Build the event dict to send to the browser
+                author = getattr(event, "author", "agent")
                 event_dict = {
                     "type": "event",
-                    "author": getattr(event, "author", "agent"),
+                    "author": author,
                 }
 
                 parts_data = []
@@ -224,6 +225,14 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                 print(f"[MISE] Tool result: {part.function_response.name}")
                             except Exception:
                                 pass  # Don't break streaming for UI-only feature
+                        elif hasattr(part, "function_call") and part.function_call and part.function_call.name == "transfer_to_agent":
+                            # Agent transfer — forward to frontend for active agent indicator
+                            target_agent = dict(part.function_call.args).get("agent_name", "")
+                            parts_data.append({
+                                "type": "agent_transfer",
+                                "target_agent": target_agent,
+                            })
+                            print(f"[MISE] Agent transfer: → {target_agent}")
 
                 # Extract output transcription (what the agent is saying)
                 if event.output_transcription and event.output_transcription.text:
@@ -271,25 +280,27 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
     OBSERVATION_PROMPTS = [
         (
             "[SYSTEM — PROACTIVE CHECK] Look at the current camera view. "
-            "If you see anything the cook should know about RIGHT NOW — "
-            "food that needs attention, produce that should be washed, "
-            "a timing issue, a technique correction, or a safety concern — "
-            "speak up briefly. If nothing noteworthy, say nothing at all. "
+            "If you see something noteworthy, route to the right specialist: "
+            "produce on counter → transfer to safety_nutrition, "
+            "active cooking technique issue → transfer to food_scientist, "
+            "timer/step transition → transfer to dinner_coordinator, "
+            "TV/cooking show → transfer to recipe_explorer. "
+            "If nothing noteworthy, say nothing at all. "
             "Do NOT repeat anything you've already said."
         ),
         (
             "[SYSTEM — OBSERVATION] Scan the kitchen scene. "
-            "Is anything cooking that needs a flip, stir, or status check? "
-            "Any produce out that hasn't been washed? "
-            "Any timing transitions coming up? "
+            "Is anything cooking that needs a flip, stir, or status check? → dinner_coordinator. "
+            "Any produce that needs washing? → safety_nutrition. "
+            "Any technique that needs correction or explanation? → food_scientist. "
             "Only speak if there's something genuinely useful to say."
         ),
         (
             "[SYSTEM — KITCHEN SCAN] Quick check: "
             "Is the food looking right? Any color changes, smoke, or steam "
-            "that suggest action is needed? Any ingredients on the counter "
-            "that the cook might need guidance on? "
-            "Speak only if you have something helpful. Don't repeat yourself."
+            "that suggest action is needed? Route observations to the right "
+            "specialist. Speak only if you have something helpful. "
+            "Don't repeat yourself."
         ),
     ]
 

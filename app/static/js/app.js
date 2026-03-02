@@ -64,6 +64,16 @@ class MiseApp {
         this.activityCount = 0;
         this.observationCount = 0;
 
+        // Multiagent state
+        this.activeAgent = 'mise_agent';
+        this.agentDisplayNames = {
+            mise_agent: { name: 'MISE', emoji: '🎯', color: '#c9a96e' },
+            dinner_coordinator: { name: 'Coordinator', emoji: '🍳', color: '#e85d3a' },
+            food_scientist: { name: 'Scientist', emoji: '🔬', color: '#5ab87a' },
+            safety_nutrition: { name: 'Safety', emoji: '🛡️', color: '#4a9eff' },
+            recipe_explorer: { name: 'Explorer', emoji: '📺', color: '#c77dba' },
+        };
+
         // Audio
         this.recordingContext = null;
         this.playbackContext = null;
@@ -514,6 +524,7 @@ class MiseApp {
                     if (part.type === 'audio' && part.data) this.playAudio(part.data);
                     if (part.type === 'function_call' && part.name) this.handleFunctionCall(part);
                     if (part.type === 'function_response' && part.name) this.handleFunctionResponse(part);
+                    if (part.type === 'agent_transfer' && part.target_agent) this.updateActiveAgent(part.target_agent);
                 }
             }
             if (data.author === 'agent' && data.parts && data.parts.length > 0) this.flashObservationBadge();
@@ -707,9 +718,44 @@ class MiseApp {
         this.aiRingState = state;
         const label = document.getElementById('orbLabel');
         if (label) {
-            const labels = { idle: 'MISE', listening: 'LISTENING', speaking: 'SPEAKING', thinking: 'THINKING' };
-            label.textContent = labels[state] || 'MISE';
+            const agentInfo = this.agentDisplayNames[this.activeAgent] || this.agentDisplayNames.mise_agent;
+            const labels = { idle: agentInfo.name.toUpperCase(), listening: 'LISTENING', speaking: 'SPEAKING', thinking: 'THINKING' };
+            label.textContent = labels[state] || agentInfo.name.toUpperCase();
         }
+    }
+
+    // ── Active Agent Indicator ──
+    updateActiveAgent(agentName) {
+        if (agentName === this.activeAgent) return;
+        this.activeAgent = agentName;
+        const info = this.agentDisplayNames[agentName] || { name: agentName, emoji: '🤖', color: '#c9a96e' };
+        console.log(`[MISE] Active agent: ${info.emoji} ${info.name}`);
+
+        // Update orb badge
+        let badge = document.getElementById('agentBadge');
+        if (!badge && this.aiStatusRing) {
+            badge = document.createElement('div');
+            badge.id = 'agentBadge';
+            badge.className = 'agent-badge';
+            this.aiStatusRing.appendChild(badge);
+        }
+        if (badge) {
+            badge.textContent = `${info.emoji} ${info.name}`;
+            badge.style.setProperty('--agent-color', info.color);
+            badge.classList.add('active');
+            // Hide badge for orchestrator (default state)
+            if (agentName === 'mise_agent') {
+                setTimeout(() => badge.classList.remove('active'), 2000);
+            }
+        }
+
+        // Update orb label
+        const orbLabel = document.getElementById('orbLabel');
+        if (orbLabel && this.aiRingState === 'idle') {
+            orbLabel.textContent = info.name.toUpperCase();
+        }
+
+        this.logActivity('🔀', `Agent: ${info.emoji} ${info.name}`);
     }
 
     // ── Caption Bar ──

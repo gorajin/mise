@@ -210,3 +210,37 @@ class TestAnalyzeAndRecreateRecipe:
         result = analyze_and_recreate_recipe("Cake", ingredients, ["mix dry", "mix wet", "combine", "bake"])
         assert len(result["grocery_list"]) == 7
 
+
+# ═══════════════════════════════════════════════════════
+#  Agent Construction (Multiagent Architecture)
+# ═══════════════════════════════════════════════════════
+
+
+class TestAgentConstruction:
+    def test_root_agent_has_sub_agents(self):
+        from app.mise_agent.agent import agent
+        assert hasattr(agent, "sub_agents")
+        assert len(agent.sub_agents) == 4
+
+    def test_sub_agent_names(self):
+        from app.mise_agent.agent import agent
+        names = {a.name for a in agent.sub_agents}
+        assert names == {"dinner_coordinator", "food_scientist", "safety_nutrition", "recipe_explorer"}
+
+    def test_sub_agent_descriptions_non_empty(self):
+        from app.mise_agent.agent import agent
+        for sub in agent.sub_agents:
+            assert sub.description and len(sub.description) > 10, f"{sub.name} missing description"
+
+    def test_sub_agent_tool_assignment(self):
+        from app.mise_agent.agent import agent
+        tool_map = {a.name: {getattr(t, '__name__', None) or getattr(t, 'name', str(t)) for t in (a.tools or [])} for a in agent.sub_agents}
+        assert "update_timeline_step" in tool_map["dinner_coordinator"]
+        assert "get_food_safety_data" in tool_map["safety_nutrition"]
+        assert "analyze_and_recreate_recipe" in tool_map["recipe_explorer"]
+
+    def test_root_agent_model(self):
+        from app.mise_agent.agent import agent
+        assert "gemini" in agent.model.lower() or "flash" in agent.model.lower()
+
+
