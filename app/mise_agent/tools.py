@@ -184,10 +184,10 @@ def get_nutrition_estimate(food_item: str) -> dict:
     }
 
 
-def update_timeline_step(step_name: str, step_description: str, status: str) -> str:
+def update_timeline_step(step_name: str, step_description: str, status: str) -> dict:
     """Update the visual dinner timeline on the user's screen.
-    
-    Use this tool whenever you establish a cooking sequence, or when a user moves 
+
+    Use this tool whenever you establish a cooking sequence, or when a user moves
     to the next step in their cooking process. This provides a visual confirmation
     (Agentic Proof) of the workflow you are managing.
 
@@ -197,9 +197,14 @@ def update_timeline_step(step_name: str, step_description: str, status: str) -> 
         status: The state of this step. Should be "pending", "active", or "completed".
 
     Returns:
-        A confirmation message that the UI was updated.
+        A dict confirming the UI update with step details.
     """
-    return f"Successfully updated timeline UI: {step_name} -> {status}"
+    return {
+        "action": "timeline_updated",
+        "step_name": step_name,
+        "step_description": step_description,
+        "status": status,
+    }
 
 
 def set_observation_interval(seconds: int, reason: str) -> dict:

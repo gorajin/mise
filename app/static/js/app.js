@@ -568,33 +568,34 @@ class MiseApp {
     }
 
     handleFunctionCall(call) {
+        const args = call.args || {};
         if (call.name === 'update_timeline_step') {
-            this.updateTimelineUI(call.args);
+            this.updateTimelineUI(args);
         } else if (call.name === 'set_observation_interval') {
-            const newIntervalSeconds = call.args.seconds || 15;
+            const newIntervalSeconds = args.seconds || 15;
             console.log(`[MISE] Agent updated visual polling to ${newIntervalSeconds}s.`);
             if (this.frameInterval) {
                 clearInterval(this.frameInterval);
                 this.frameInterval = setInterval(() => this.captureAndSendFrame(), newIntervalSeconds * 1000);
             }
-            this.logActivity('📷', `Camera interval → ${newIntervalSeconds}s: ${call.args.reason || ''}`);
+            this.logActivity('📷', `Camera interval → ${newIntervalSeconds}s: ${args.reason || ''}`);
         } else if (call.name === 'add_visual_annotation') {
-            const label = call.args.label || 'Observation';
-            const region = call.args.region || 'center';
-            const style = call.args.style || 'info';
-            const duration = call.args.duration_seconds || 5;
+            const label = args.label || 'Observation';
+            const region = args.region || 'center';
+            const style = args.style || 'info';
+            const duration = args.duration_seconds || 5;
             this.addAnnotation(label, region, style, duration);
         } else if (call.name === 'analyze_and_recreate_recipe') {
             this.updateAIStatus('thinking');
-            this.pendingToolCalls[call.name] = call.args;
-            const dishName = call.args.dish_name || 'Recipe';
+            this.pendingToolCalls[call.name] = args;
+            const dishName = args.dish_name || 'Recipe';
             this.logActivity('👨‍🍳', `Reverse-engineering: "${dishName}"`);
         } else if (['get_food_safety_data', 'get_produce_safety_data', 'get_nutrition_estimate'].includes(call.name)) {
             this.updateAIStatus('thinking');
-            this.pendingToolCalls[call.name] = call.args;
-            this.showToolCard(call.name, call.args, null);
+            this.pendingToolCalls[call.name] = args;
+            this.showToolCard(call.name, args, null);
             const icons = { get_food_safety_data: '🌡️', get_produce_safety_data: '🥬', get_nutrition_estimate: '📊' };
-            const argVal = call.args.food_item || call.args.produce_item || '';
+            const argVal = args.food_item || args.produce_item || '';
             this.logActivity(icons[call.name] || '🔧', `Tool: ${call.name.replace('get_', '').replace('_data', '').replace('_estimate', '')}("${argVal}")`);
         }
     }

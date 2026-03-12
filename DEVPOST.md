@@ -76,7 +76,7 @@ Browser (Phone) ──WebSocket──▶ FastAPI (Cloud Run)
 | **Secrets** | Google Secret Manager (Cloud Run) / .env (local dev) |
 | **Logging** | Google Cloud Logging (structured agent events) |
 | **Deployment** | Docker + Google Cloud Run |
-| **Testing** | pytest (46 tests for tools + multiagent hierarchy) |
+| **Testing** | pytest (50 tests for tools + multiagent hierarchy) |
 
 ### What Makes It Special
 

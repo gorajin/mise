@@ -10,6 +10,7 @@ from app.mise_agent.tools import (
     get_produce_safety_data,
     get_nutrition_estimate,
     set_observation_interval,
+    update_timeline_step,
     analyze_and_recreate_recipe,
     add_visual_annotation,
     _stem,
@@ -150,6 +151,32 @@ class TestNutrition:
     def test_returns_dict(self):
         result = get_nutrition_estimate("olive oil")
         assert isinstance(result, dict)
+
+
+# ═══════════════════════════════════════════════════════
+#  update_timeline_step
+# ═══════════════════════════════════════════════════════
+
+
+class TestUpdateTimelineStep:
+    def test_returns_dict(self):
+        result = update_timeline_step("Prep Veggies", "Chop onions and garlic.", "pending")
+        assert isinstance(result, dict)
+
+    def test_returns_expected_keys(self):
+        result = update_timeline_step("Sear Steak", "High heat for 3 minutes per side.", "active")
+        assert result["action"] == "timeline_updated"
+        assert result["step_name"] == "Sear Steak"
+        assert result["step_description"] == "High heat for 3 minutes per side."
+        assert result["status"] == "active"
+
+    def test_active_status(self):
+        result = update_timeline_step("Boil Water", "Bring pot to a rolling boil.", "active")
+        assert result["status"] == "active"
+
+    def test_completed_status(self):
+        result = update_timeline_step("Rest Meat", "Let steak rest for 5 minutes.", "completed")
+        assert result["status"] == "completed"
 
 
 # ═══════════════════════════════════════════════════════

@@ -121,7 +121,7 @@ Optimized for the Gemini Live Agent Challenge judging rubric:
 **[Screen: Terminal running tests]**
 
 **Presenter:**
-> "We have 46 tests covering all 8 grounding tools and the multiagent hierarchy."
+> "We have 50 tests covering all 8 grounding tools and the multiagent hierarchy."
 
 **[Screen: Show the visual annotation on camera]**
 

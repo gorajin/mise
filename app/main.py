@@ -104,12 +104,11 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
 
     frame_count = 0
     audio_chunk_count = 0
-    last_significant_change = 0  # timestamp of last visual change
     significant_change_pending = False
 
     async def upstream_task():
         """Receive WebSocket messages and forward to LiveRequestQueue."""
-        nonlocal frame_count, audio_chunk_count
+        nonlocal frame_count, audio_chunk_count, significant_change_pending
         try:
             while True:
                 message = await websocket.receive()
@@ -145,8 +144,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                             frame_count += 1
                             # Track significant visual changes for smart observations
                             if data.get("significant_change"):
-                                nonlocal last_significant_change, significant_change_pending
-                                last_significant_change = asyncio.get_event_loop().time()
                                 significant_change_pending = True
                                 print(f"[MISE] Video frame #{frame_count}: SIGNIFICANT CHANGE detected")
                             elif frame_count % 30 == 0:
@@ -220,15 +217,25 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                 "mime_type": part.inline_data.mime_type,
                             })
                         elif hasattr(part, "function_call") and part.function_call:
-                            # Forward function calls to the browser for UI overlays
                             args_dict = dict(part.function_call.args) if part.function_call.args else {}
-                            parts_data.append({
-                                "type": "function_call",
-                                "name": part.function_call.name,
-                                "args": args_dict
-                            })
-                            log_agent_event("tool_call", tool=part.function_call.name, args=args_dict)
-                            logger.info(f"Tool called: {part.function_call.name} {args_dict}")
+                            # Check for agent transfer first (before generic function_call)
+                            if part.function_call.name == "transfer_to_agent":
+                                target_agent = args_dict.get("agent_name", "")
+                                parts_data.append({
+                                    "type": "agent_transfer",
+                                    "target_agent": target_agent,
+                                })
+                                log_agent_event("agent_transfer", target=target_agent)
+                                logger.info(f"Agent transfer: → {target_agent}")
+                            else:
+                                # Forward function calls to the browser for UI overlays
+                                parts_data.append({
+                                    "type": "function_call",
+                                    "name": part.function_call.name,
+                                    "args": args_dict
+                                })
+                                log_agent_event("tool_call", tool=part.function_call.name, args=args_dict)
+                                logger.info(f"Tool called: {part.function_call.name} {args_dict}")
                         elif hasattr(part, "function_response") and part.function_response:
                             # Forward tool results to browser for rich data cards
                             try:
@@ -244,15 +251,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                 print(f"[MISE] Tool result: {part.function_response.name}")
                             except Exception:
                                 pass  # Don't break streaming for UI-only feature
-                        elif hasattr(part, "function_call") and part.function_call and part.function_call.name == "transfer_to_agent":
-                            # Agent transfer — forward to frontend for active agent indicator
-                            target_agent = dict(part.function_call.args).get("agent_name", "")
-                            parts_data.append({
-                                "type": "agent_transfer",
-                                "target_agent": target_agent,
-                            })
-                            log_agent_event("agent_transfer", target=target_agent)
-                            logger.info(f"Agent transfer: → {target_agent}")
 
                 # Extract output transcription (what the agent is saying)
                 if event.output_transcription and event.output_transcription.text:

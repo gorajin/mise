@@ -119,44 +119,29 @@ def get_secret(secret_id: str, project_id: str = None) -> str:
 def get_session_service():
     """Get the best available session service.
 
-    Returns Firestore-backed sessions on GCP, InMemory locally.
+    On Cloud Run: tries DatabaseSessionService with SQLite (persists across
+    requests within a single container instance). Falls back to InMemory.
+    Locally: always uses InMemory.
     """
     from google.adk.sessions import InMemorySessionService
 
-    # Try Firestore on Cloud Run
-    if os.getenv("K_SERVICE") or os.getenv("USE_FIRESTORE"):
+    # Try persistent sessions on Cloud Run
+    if os.getenv("K_SERVICE") or os.getenv("USE_DATABASE_SESSIONS"):
         try:
             from google.adk.sessions import DatabaseSessionService
 
-            project = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT")
-            if project:
-                service = DatabaseSessionService(
-                    db_url=f"firestore://{project}/mise-sessions"
-                )
-                get_logger().info(f"Firestore session service initialized (project={project})")
-                return service
+            # Use SQLite for persistent sessions within the container
+            # (survives across requests, lost on cold start — acceptable for cooking sessions)
+            db_path = os.getenv("SESSION_DB_PATH", "/tmp/mise_sessions.db")
+            service = DatabaseSessionService(
+                db_url=f"sqlite:///{db_path}"
+            )
+            get_logger().info(f"DatabaseSessionService initialized (sqlite:///{db_path})")
+            return service
         except ImportError:
-            get_logger().info("DatabaseSessionService not available, trying Firestore direct")
+            get_logger().info("DatabaseSessionService not available in this ADK version")
         except Exception as e:
-            get_logger().warning(f"Firestore session setup failed: {e}")
-
-        # Try direct Firestore wrapper
-        try:
-            from google.cloud import firestore
-
-            db = firestore.Client()
-            # Verify connection by accessing collection
-            db.collection("mise-sessions").document("_health").set(
-                {"status": "ok"}, merge=True
-            )
-            get_logger().info("Firestore connection verified")
-            # For now, use InMemory but log that Firestore is available
-            # (ADK's native Firestore support varies by version)
-            get_logger().info(
-                "Using InMemorySessionService with Firestore backup available"
-            )
-        except Exception as e:
-            get_logger().warning(f"Firestore direct connection failed: {e}")
+            get_logger().warning(f"DatabaseSessionService setup failed: {e}")
 
     get_logger().info("Using InMemorySessionService (local development)")
     return InMemorySessionService()
