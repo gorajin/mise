@@ -8,7 +8,7 @@ Built for the [Gemini Live Agent Challenge](https://devpost.com/) using [Google 
 
 ## 🌐 Live Demo
 
-> **https://mise-965205106736.us-central1.run.app**
+> **https://mise-t4b3dukkza-uc.a.run.app**
 >
 > Open on your phone. Grant camera + mic permissions. Start cooking.
 
