@@ -195,12 +195,12 @@ class MiseApp {
         let isDragging = false, startY = 0, startHeight = 0;
 
         const onStart = (clientY) => { isDragging = true; startY = clientY; startHeight = this.transcriptPanel.offsetHeight; this.transcriptPanel.style.transition = 'none'; };
-        const onMove = (clientY) => { if (!isDragging) return; const newH = Math.max(56, Math.min(window.innerHeight * 0.65, startHeight + (startY - clientY))); this.transcriptPanel.style.height = newH + 'px'; };
+        const onMove = (clientY) => { if (!isDragging) return; const newH = Math.max(72, Math.min(window.innerHeight * 0.65, startHeight + (startY - clientY))); this.transcriptPanel.style.height = newH + 'px'; };
         const onEnd = () => {
             if (!isDragging) return; isDragging = false;
             this.transcriptPanel.style.transition = 'height 0.3s ease';
             const h = this.transcriptPanel.offsetHeight;
-            if (h < 100) { this.transcriptPanel.classList.add('collapsed'); this.transcriptPanel.classList.remove('expanded'); }
+            if (h < 120) { this.transcriptPanel.classList.add('collapsed'); this.transcriptPanel.classList.remove('expanded'); }
             else if (h > window.innerHeight * 0.5) { this.transcriptPanel.classList.add('expanded'); this.transcriptPanel.classList.remove('collapsed'); this.transcriptPanel.style.height = ''; }
             else { this.transcriptPanel.classList.remove('collapsed', 'expanded'); this.transcriptPanel.style.height = ''; }
         };

@@ -141,6 +141,7 @@ body {
     background: var(--accent-ember);
     opacity: 0;
     animation: particle-float 3s ease-out infinite;
+    will-change: transform, opacity;
 }
 
 .particle:nth-child(1) {
@@ -197,7 +198,7 @@ body {
 
 .splash-title {
     font-family: var(--font-display);
-    font-size: 48px;
+    font-size: clamp(32px, 10vw, 48px);
     font-weight: 700;
     color: var(--accent-copper-bright);
     letter-spacing: 6px;
@@ -546,8 +547,8 @@ body {
 /* ── Observation Badge ── */
 .observation-badge {
     position: absolute;
-    top: 12px;
-    left: 12px;
+    top: max(12px, env(safe-area-inset-top, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
     display: flex;
     align-items: center;
     gap: 6px;
@@ -598,13 +599,13 @@ body {
 /* ── Timers Container ── */
 .timers-container {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: max(12px, env(safe-area-inset-top, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
     display: flex;
     flex-direction: column;
     gap: 6px;
     z-index: 15;
-    max-width: 220px;
+    max-width: min(220px, calc(100vw - 60px));
 }
 
 .timer-widget {
@@ -685,6 +686,11 @@ body {
     cursor: pointer;
     padding: 4px;
     line-height: 1;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* ── Safety Overlay ── */
@@ -1048,7 +1054,7 @@ body {
     gap: 8px;
     z-index: 18;
     pointer-events: none;
-    max-width: 280px;
+    max-width: min(280px, calc(100vw - 24px));
 }
 
 .tool-data-card {
@@ -1291,8 +1297,8 @@ body {
     background: none;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 50%;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1454,7 +1460,11 @@ body {
     cursor: pointer;
     padding: 2px;
     display: flex;
+    align-items: center;
+    justify-content: center;
     transition: transform 0.3s;
+    min-width: 44px;
+    min-height: 44px;
 }
 
 .timeline-widget.collapsed .timeline-toggle {
@@ -1740,7 +1750,9 @@ body {
     white-space: nowrap;
     transition: var(--transition);
     font-family: var(--font-sans);
-    min-height: 36px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
 }
 
 .quick-btn:hover {
@@ -1770,10 +1782,11 @@ body {
     border-radius: var(--radius-full);
     padding: 10px 16px;
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 16px;
     outline: none;
     font-family: var(--font-sans);
     transition: var(--transition);
+    min-height: 44px;
 }
 
 #textInput:focus {
@@ -1789,8 +1802,8 @@ body {
     background: var(--accent-copper);
     border: none;
     color: white;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     cursor: pointer;
     display: flex;
@@ -1939,6 +1952,11 @@ body {
     font-weight: 500;
     color: var(--text-secondary);
     margin-bottom: 6px;
+    transition: color 0.3s ease;
+}
+
+.planner-field:focus-within label {
+    color: var(--accent-copper-bright);
 }
 
 .planner-field input {
@@ -1948,15 +1966,17 @@ body {
     border-radius: var(--radius-md);
     padding: 12px 16px;
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 16px;
     outline: none;
     font-family: var(--font-sans);
-    transition: var(--transition);
+    transition: all 0.3s ease;
+    min-height: 48px;
 }
 
 .planner-field input:focus {
     border-color: var(--accent-copper);
-    box-shadow: 0 0 0 2px rgba(212, 132, 90, 0.15);
+    box-shadow: 0 0 0 3px rgba(212, 132, 90, 0.2);
+    background: rgba(42, 36, 28, 0.95);
 }
 
 .planner-field input::placeholder {
@@ -1974,6 +1994,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 8px;
+    min-height: 52px;
 }
 
 /* ═══ RECONNECT BANNER ═══ */
@@ -2039,8 +2060,8 @@ body {
     }
 
     .transcript-panel.collapsed {
-        height: 56px;
-        min-height: 56px;
+        height: 72px;
+        min-height: 72px;
     }
 
     .transcript-panel.collapsed .transcript-messages,
@@ -2056,19 +2077,19 @@ body {
     .sheet-handle {
         display: flex;
         justify-content: center;
-        padding: 8px 0 4px;
+        padding: 12px 0 8px;
         cursor: grab;
     }
 
     .handle-bar {
-        width: 36px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 4px;
+        width: 48px;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.25);
+        border-radius: 5px;
     }
 
     .dinner-planner {
-        padding: 0 24px;
+        padding: 0 16px;
     }
 
     .fab-next.visible {
@@ -2275,5 +2296,34 @@ body {
         right: 8px;
         bottom: 48px;
         max-height: 150px;
+    }
+
+    /* Slightly larger viewfinder corners on mobile */
+    .vf-corner {
+        width: 32px;
+        height: 32px;
+    }
+    .vf-tl, .vf-tr, .vf-bl, .vf-br {
+        border-width: 0;
+    }
+    .vf-tl { border-top-width: 2.5px; border-left-width: 2.5px; }
+    .vf-tr { border-top-width: 2.5px; border-right-width: 2.5px; }
+    .vf-bl { border-bottom-width: 2.5px; border-left-width: 2.5px; }
+    .vf-br { border-bottom-width: 2.5px; border-right-width: 2.5px; }
+
+    /* Tool card source text slightly larger */
+    .tool-card-source { font-size: 10px; }
+
+    /* Phase bar tighter on mobile */
+    .phase-item { padding: 4px 8px; font-size: 9px; gap: 3px; }
+    .phase-connector { width: 16px; }
+}
+
+/* ═══ REDUCED MOTION ═══ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }

@@ -25,13 +25,17 @@ Optimized for the Gemini Live Agent Challenge judging rubric:
 **Presenter (to camera):**
 > "When you're cooking, your hands look like this. Text-based AI is useless. I built MISE — a multiagent kitchen intelligence system — so I never touch my phone while cooking."
 
-**[Action]** Phone is already running MISE. Camera active, orb pulsing.
-
-**MISE (Voice):**
-> "Hey chef! I can see your kitchen — what are we making tonight?"
+**[Action]** Phone shows the MISE Dinner Planner screen — dark, premium UI with flame animation.
 
 **Presenter:**
-> "Seared chicken with roasted potatoes and strawberry salad. Dinner at 7."
+> "MISE starts with a dinner planner. I type in what I'm making and when I want to eat."
+
+**[Action]** Type "Seared chicken, roasted potatoes, strawberry salad" into the meal field. Set time to 7:00 PM. Tap "Start Cooking".
+
+**[Visual Hook]** Splash animation plays briefly, camera activates, MISE orb begins pulsing.
+
+**MISE (Voice):**
+> "Hey chef! I can see your kitchen. Let me build your dinner timeline."
 
 **[Visual Hook]** The Dinner Timeline dynamically populates steps. Phase bar activates at PREP. The orb shows agent badge: "Coordinator".
 
@@ -121,7 +125,7 @@ Optimized for the Gemini Live Agent Challenge judging rubric:
 **[Screen: Terminal running tests]**
 
 **Presenter:**
-> "We have 50 tests covering all 8 grounding tools and the multiagent hierarchy."
+> "We have 97 tests covering all 8 grounding tools, edge cases, data integrity, server endpoints, and the multiagent hierarchy."
 
 **[Screen: Show the visual annotation on camera]**
 

@@ -283,6 +283,241 @@ class TestAddVisualAnnotation:
 # ═══════════════════════════════════════════════════════
 
 
+# ═══════════════════════════════════════════════════════
+#  Edge Cases — Stemming & Matching
+# ═══════════════════════════════════════════════════════
+
+
+class TestStemEdgeCases:
+    def test_empty_string(self):
+        assert _stem("") == ""
+
+    def test_short_word(self):
+        """Words too short for suffix removal should be returned as-is."""
+        assert _stem("as") == "as"
+        assert _stem("is") == "is"
+
+    def test_ves_suffix(self):
+        assert _stem("leaves") == "leaf"
+
+    def test_es_suffix(self):
+        assert _stem("tomatoes") == "tomato"
+
+    def test_whitespace_handling(self):
+        assert _stem("  chicken  ") == "chicken"
+
+
+class TestFoodMatchEdgeCases:
+    def test_empty_query(self):
+        # Empty should match anything (substring)
+        assert _food_match("", "chicken") is True
+
+    def test_both_empty(self):
+        assert _food_match("", "") is True
+
+    def test_whitespace_tolerance(self):
+        assert _food_match("  chicken  ", "chicken") is True
+
+    def test_case_variations(self):
+        assert _food_match("CHICKEN BREAST", "chicken breast") is True
+
+    def test_plural_query_singular_candidate(self):
+        assert _food_match("eggs", "egg") is True
+
+    def test_unrelated_foods(self):
+        assert _food_match("broccoli", "steak") is False
+
+
+# ═══════════════════════════════════════════════════════
+#  Edge Cases — Food Safety
+# ═══════════════════════════════════════════════════════
+
+
+class TestFoodSafetyEdgeCases:
+    def test_category_match_poultry(self):
+        """Items that match a category keyword should return category guidelines."""
+        result = get_food_safety_data("turkey burger")
+        assert isinstance(result, dict)
+        assert len(result) > 0
+
+    def test_empty_query(self):
+        """Empty string should return general guidelines, not crash."""
+        result = get_food_safety_data("")
+        assert isinstance(result, dict)
+
+    def test_extra_whitespace(self):
+        result = get_food_safety_data("  chicken breast  ")
+        assert "safe_internal_temp_f" in result
+
+    def test_result_has_temperature(self):
+        """All specific food items should have safe temperature."""
+        for item in ["chicken breast", "ground beef", "salmon", "pork chop"]:
+            result = get_food_safety_data(item)
+            assert "safe_internal_temp_f" in result, f"{item} missing temp"
+
+
+# ═══════════════════════════════════════════════════════
+#  Edge Cases — Produce Safety
+# ═══════════════════════════════════════════════════════
+
+
+class TestProduceSafetyEdgeCases:
+    def test_empty_query_no_crash(self):
+        result = get_produce_safety_data("")
+        assert isinstance(result, dict)
+        assert "wash_method" in result
+
+    def test_dirty_dozen_not_clean_fifteen(self):
+        """Dirty Dozen items should NOT also be Clean Fifteen."""
+        result = get_produce_safety_data("strawberries")
+        assert result["is_dirty_dozen"] is True
+        assert result["is_clean_fifteen"] is False
+
+    def test_clean_fifteen_not_dirty_dozen(self):
+        result = get_produce_safety_data("avocado")
+        assert result["is_clean_fifteen"] is True
+        assert result["is_dirty_dozen"] is False
+
+    def test_unknown_has_flags(self):
+        """Even unknown produce should have both flags."""
+        result = get_produce_safety_data("kumquat")
+        assert "is_dirty_dozen" in result
+        assert "is_clean_fifteen" in result
+
+
+# ═══════════════════════════════════════════════════════
+#  Edge Cases — Nutrition
+# ═══════════════════════════════════════════════════════
+
+
+class TestNutritionEdgeCases:
+    def test_empty_query_returns_fallback(self):
+        result = get_nutrition_estimate("")
+        assert isinstance(result, dict)
+
+    def test_category_match_nuts(self):
+        """Searching for 'almonds' should match the nuts category."""
+        result = get_nutrition_estimate("almonds")
+        assert isinstance(result, dict)
+        # Should have nutrition data, not just a note
+        assert "calories" in result or "note" in result
+
+    def test_category_match_cheese(self):
+        result = get_nutrition_estimate("cheddar")
+        assert isinstance(result, dict)
+
+    def test_has_macros_for_known_items(self):
+        """Known items should have full macro data."""
+        for item in ["chicken breast", "white rice", "olive oil", "egg"]:
+            result = get_nutrition_estimate(item)
+            assert "calories" in result, f"{item} missing calories"
+            assert "protein_g" in result, f"{item} missing protein_g"
+
+    def test_healthier_swap_present(self):
+        """Items with swaps should have healthier_swap field."""
+        result = get_nutrition_estimate("white rice")
+        assert "healthier_swap" in result
+        assert result["healthier_swap"] is not None
+
+
+# ═══════════════════════════════════════════════════════
+#  Edge Cases — Visual Annotation
+# ═══════════════════════════════════════════════════════
+
+
+class TestVisualAnnotationEdgeCases:
+    def test_zero_duration_allowed(self):
+        result = add_visual_annotation("Test", "center", "info", 0)
+        assert result["duration_seconds"] == 0
+
+    def test_negative_duration_not_capped(self):
+        """Negative duration should still go through (min won't trigger)."""
+        result = add_visual_annotation("Test", "center", "info", -1)
+        assert result["duration_seconds"] == -1
+
+    def test_unicode_label(self):
+        result = add_visual_annotation("Flip now! 🔥", "center", "warning")
+        assert result["label"] == "Flip now! 🔥"
+
+    def test_long_label(self):
+        result = add_visual_annotation("A" * 200, "center", "info")
+        assert len(result["label"]) == 200
+
+
+# ═══════════════════════════════════════════════════════
+#  Edge Cases — Timeline & Observation
+# ═══════════════════════════════════════════════════════
+
+
+class TestTimelineEdgeCases:
+    def test_empty_step_name(self):
+        result = update_timeline_step("", "", "pending")
+        assert result["action"] == "timeline_updated"
+
+    def test_all_statuses(self):
+        for status in ["pending", "active", "completed"]:
+            result = update_timeline_step("Step", "Desc", status)
+            assert result["status"] == status
+
+
+class TestObservationEdgeCases:
+    def test_zero_interval(self):
+        result = set_observation_interval(0, "paused")
+        assert result["new_interval_seconds"] == 0
+
+    def test_very_large_interval(self):
+        result = set_observation_interval(3600, "slow bake")
+        assert result["new_interval_seconds"] == 3600
+
+
+# ═══════════════════════════════════════════════════════
+#  Data Integrity — JSON databases load correctly
+# ═══════════════════════════════════════════════════════
+
+
+class TestDataIntegrity:
+    def test_food_safety_db_loads(self):
+        from app.mise_agent.tools import _load_food_safety_db
+        db = _load_food_safety_db()
+        assert "items" in db
+        assert "categories" in db
+        assert "general" in db
+        assert len(db["items"]) > 0
+
+    def test_produce_safety_db_loads(self):
+        from app.mise_agent.tools import _load_produce_safety_db
+        db = _load_produce_safety_db()
+        assert "produce" in db
+        assert "dirty_dozen" in db
+        assert "clean_fifteen" in db
+
+    def test_nutrition_db_loads(self):
+        from app.mise_agent.tools import _load_nutrition_db
+        db = _load_nutrition_db()
+        assert "items" in db
+        assert "categories" in db
+        assert len(db["items"]) > 0
+
+    def test_food_safety_items_have_required_fields(self):
+        from app.mise_agent.tools import _load_food_safety_db
+        db = _load_food_safety_db()
+        for key, item in db["items"].items():
+            assert "safe_internal_temp_f" in item, f"{key} missing safe_internal_temp_f"
+
+    def test_nutrition_items_have_required_fields(self):
+        from app.mise_agent.tools import _load_nutrition_db
+        db = _load_nutrition_db()
+        for key, item in db["items"].items():
+            assert "calories" in item, f"{key} missing calories"
+            assert "protein_g" in item, f"{key} missing protein_g"
+            assert "serving" in item, f"{key} missing serving"
+
+
+# ═══════════════════════════════════════════════════════
+#  Agent Construction (Multiagent Architecture)
+# ═══════════════════════════════════════════════════════
+
+
 class TestAgentConstruction:
     def test_root_agent_has_sub_agents(self):
         from app.mise_agent.agent import agent
