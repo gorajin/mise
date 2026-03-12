@@ -18,6 +18,7 @@ from .tools import (
     update_timeline_step,
     set_observation_interval,
     analyze_and_recreate_recipe,
+    add_visual_annotation,
 )
 
 # ═══════════════════════════════════════════════════════
@@ -46,10 +47,18 @@ at the same time, hot.
 - ONE step at a time — never dump a full recipe.
 - Encouraging: "Nice timing! Everything is right on track."
 
+## VISUAL ANNOTATIONS
+When you observe cooking progress through the camera, ALWAYS use `add_visual_annotation`
+to highlight what you see:
+- "Flip now!" (warning) when food needs flipping
+- "Good color ✓" (success) when browning looks right
+- "Check temp" (warning) when it's time to temp-check
+- "Timer: 5 min" (info) for visual timer reminders on the food itself
+
 ## When to Transfer Back
-When the user asks a food science question (WHY something works), a safety/temperature 
-question, a nutrition question, or wants to explore a recipe from TV — transfer back 
-to the Orchestrator with `transfer_to_agent("mise_agent")` so it can route to the 
+When the user asks a food science question (WHY something works), a safety/temperature
+question, a nutrition question, or wants to explore a recipe from TV — transfer back
+to the Orchestrator with `transfer_to_agent("mise_agent")` so it can route to the
 right specialist.
 """
 
@@ -57,7 +66,7 @@ dinner_coordinator = Agent(
     name="dinner_coordinator",
     model=os.getenv("MISE_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"),
     description="Specialist for dinner timeline management, step-by-step cooking coordination, timer management, and pacing. Route here when the user is planning a meal, needs next-step guidance, or you need to manage cooking timers.",
-    tools=[update_timeline_step, set_observation_interval],
+    tools=[update_timeline_step, set_observation_interval, add_visual_annotation],
     instruction=COORDINATOR_INSTRUCTION,
 )
 
@@ -101,14 +110,21 @@ Apply food science to explain WHY techniques matter. Actionable, not academic.
 - "That sauce looks thin — reduce 3 more minutes."
 - "Curl those fingers — claw grip on the knife."
 
+## VISUAL ANNOTATIONS
+When you see something in the camera that relates to food science, ANNOTATE it:
+- "Maillard ✓" (success) — good browning developing
+- "Too wet!" (warning) — surface moisture blocking browning
+- "Fond forming" (info) — caramelized bits developing
+- "Emulsion breaking" (danger) — sauce splitting
+
 ## Communication Style
 - WHY in one sentence max: "Pat it dry — moisture blocks browning."
 - Use Google Search for cutting-edge food science questions.
 - Keep it SHORT — this is a kitchen, not a lecture hall.
 
 ## When to Transfer Back
-When the user moves on to a practical cooking step (timeline/timer), asks about 
-temperatures or safety, nutrition, or recipe exploration — transfer back to 
+When the user moves on to a practical cooking step (timeline/timer), asks about
+temperatures or safety, nutrition, or recipe exploration — transfer back to
 `transfer_to_agent("mise_agent")`.
 """
 
@@ -116,7 +132,7 @@ food_scientist = Agent(
     name="food_scientist",
     model=os.getenv("MISE_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"),
     description="Specialist for explaining the physics and chemistry behind cooking techniques — Maillard reaction, emulsions, viscosity, fermentation, temperature science, and visual verification from camera. Route here when the user asks WHY a technique works or when you observe something that needs a scientific explanation.",
-    tools=[google_search],
+    tools=[google_search, add_visual_annotation],
     instruction=SCIENTIST_INSTRUCTION,
 )
 
@@ -155,13 +171,21 @@ Be practical, not preachy:
 - Butter for cooking → avocado oil spray (baking: keep the butter)
 Don't push these unless the user has expressed interest in healthier eating.
 
+## VISUAL ANNOTATIONS
+When you identify produce or safety concerns on camera, ALWAYS annotate:
+- "Dirty Dozen ⚠" (danger) — when you see high-pesticide produce
+- "Wash first!" (warning) — produce that needs washing
+- "Clean Fifteen ✓" (success) — low-pesticide produce
+- "165°F target" (info) — temperature target for visible protein
+- "Danger zone!" (danger) — food sitting at unsafe temperature
+
 ## Communication Style
 - Concise, confident, factual.
 - Round nutrition to nearest 10: say "about 440" not "437 calories."
 - ONE answer per question — don't chain into unsolicited advice.
 
 ## When to Transfer Back
-When the user moves to cooking steps, asks about technique/science, or wants recipe 
+When the user moves to cooking steps, asks about technique/science, or wants recipe
 exploration — transfer back to `transfer_to_agent("mise_agent")`.
 """
 
@@ -169,7 +193,7 @@ safety_nutrition = Agent(
     name="safety_nutrition",
     model=os.getenv("MISE_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"),
     description="Specialist for food safety temperatures (USDA), produce washing and pesticide info, nutrition estimates, calorie/macro calculations, and healthy substitution suggestions. Route here when the user asks about temperatures, doneness, washing produce, calories, macros, or dietary substitutions.",
-    tools=[get_food_safety_data, get_produce_safety_data, get_nutrition_estimate],
+    tools=[get_food_safety_data, get_produce_safety_data, get_nutrition_estimate, add_visual_annotation],
     instruction=SAFETY_NUTRITION_INSTRUCTION,
 )
 
@@ -199,13 +223,19 @@ Help users discover, reverse-engineer, and try new recipes.
 - When suggesting a recipe, offer: "Want me to list everything you'd need?"
 - Organize by store section: produce, proteins, pantry, dairy.
 
+## VISUAL ANNOTATIONS
+When identifying dishes or ingredients on camera/TV, ANNOTATE what you see:
+- "Risotto" (identify) — when you identify a dish on TV
+- "Saffron threads" (identify) — when you spot an ingredient
+- "Technique: fold" (info) — when you see a technique being used
+
 ## Communication Style
 - Enthusiastic but concise. Building the user's confidence to try new things.
 - Use Google Search for unfamiliar techniques or regional recipes.
 
 ## When to Transfer Back
-When the user is ready to start cooking (needs timeline/timer help), asks about 
-safety/temps, nutrition, or food science — transfer back to 
+When the user is ready to start cooking (needs timeline/timer help), asks about
+safety/temps, nutrition, or food science — transfer back to
 `transfer_to_agent("mise_agent")`.
 """
 
@@ -213,7 +243,7 @@ recipe_explorer = Agent(
     name="recipe_explorer",
     model=os.getenv("MISE_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"),
     description="Specialist for recipe reverse-engineering from TV shows, recipe discovery, ingredient exploration, grocery list generation, and cooking show co-watching. Route here when the user is watching a cooking show, asks about a new recipe, wants a grocery list, or mentions an unfamiliar ingredient.",
-    tools=[analyze_and_recreate_recipe, google_search],
+    tools=[analyze_and_recreate_recipe, google_search, add_visual_annotation],
     instruction=RECIPE_EXPLORER_INSTRUCTION,
 )
 
@@ -271,14 +301,22 @@ If the user interrupts mid-sentence, STOP immediately. Pivot smoothly: "Got it,"
 were saying before.
 
 ## AUTONOMOUS GAZE CONTROL
-Control your visual polling rate with `set_observation_interval` based on the cooking 
+Control your visual polling rate with `set_observation_interval` based on the cooking
 physics. High heat searing → 5 seconds. Baking → 60 seconds.
+
+## VISUAL ANNOTATIONS (Critical — Use Often!)
+When you SEE something in the camera and comment on it, ALWAYS call `add_visual_annotation`
+to highlight it on the user's screen. This puts a labeled overlay directly on the video
+feed so the user knows exactly what you're looking at. Examples:
+- See produce → annotate with "identify" style ("Strawberries", region="center")
+- See smoke → annotate with "warning" style ("Too much smoke!", region="center")
+- See good browning → annotate with "success" style ("Nice sear ✓", region="center")
 """
 
 agent = Agent(
     name="mise_agent",
     model=os.getenv("MISE_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"),
-    tools=[set_observation_interval],
+    tools=[set_observation_interval, add_visual_annotation],
     instruction=ORCHESTRATOR_INSTRUCTION,
     sub_agents=[dinner_coordinator, food_scientist, safety_nutrition, recipe_explorer],
 )

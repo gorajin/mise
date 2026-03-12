@@ -11,6 +11,7 @@ from app.mise_agent.tools import (
     get_nutrition_estimate,
     set_observation_interval,
     analyze_and_recreate_recipe,
+    add_visual_annotation,
     _stem,
     _food_match,
 )
@@ -212,6 +213,45 @@ class TestAnalyzeAndRecreateRecipe:
 
 
 # ═══════════════════════════════════════════════════════
+#  add_visual_annotation
+# ═══════════════════════════════════════════════════════
+
+
+class TestAddVisualAnnotation:
+    def test_returns_dict(self):
+        result = add_visual_annotation("Flip now!", "center", "warning")
+        assert isinstance(result, dict)
+
+    def test_returns_expected_keys(self):
+        result = add_visual_annotation("Nice sear", "center", "success", 8)
+        assert result["action"] == "visual_annotation_added"
+        assert result["label"] == "Nice sear"
+        assert result["region"] == "center"
+        assert result["style"] == "success"
+        assert result["duration_seconds"] == 8
+
+    def test_default_duration(self):
+        result = add_visual_annotation("Test", "top-left", "info")
+        assert result["duration_seconds"] == 5
+
+    def test_max_duration_capped(self):
+        result = add_visual_annotation("Test", "center", "danger", 60)
+        assert result["duration_seconds"] == 15
+
+    def test_all_styles(self):
+        for style in ["info", "success", "warning", "danger", "identify"]:
+            result = add_visual_annotation("Test", "center", style)
+            assert result["style"] == style
+
+    def test_all_regions(self):
+        regions = ["center", "top-left", "top-right", "bottom-left", "bottom-right",
+                    "top-center", "bottom-center", "left-center", "right-center"]
+        for region in regions:
+            result = add_visual_annotation("Test", region, "info")
+            assert result["region"] == region
+
+
+# ═══════════════════════════════════════════════════════
 #  Agent Construction (Multiagent Architecture)
 # ═══════════════════════════════════════════════════════
 
@@ -238,6 +278,14 @@ class TestAgentConstruction:
         assert "update_timeline_step" in tool_map["dinner_coordinator"]
         assert "get_food_safety_data" in tool_map["safety_nutrition"]
         assert "analyze_and_recreate_recipe" in tool_map["recipe_explorer"]
+        # All specialist agents should have visual annotation capability
+        for name in ["dinner_coordinator", "food_scientist", "safety_nutrition", "recipe_explorer"]:
+            assert "add_visual_annotation" in tool_map[name], f"{name} missing add_visual_annotation"
+
+    def test_root_agent_has_annotation_tool(self):
+        from app.mise_agent.agent import agent
+        tool_names = {getattr(t, '__name__', None) or getattr(t, 'name', str(t)) for t in (agent.tools or [])}
+        assert "add_visual_annotation" in tool_names
 
     def test_root_agent_model(self):
         from app.mise_agent.agent import agent

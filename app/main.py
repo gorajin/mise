@@ -17,18 +17,26 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from google.adk.runners import Runner
 from google.adk.agents.run_config import RunConfig
-from google.adk.sessions import InMemorySessionService
 from google.adk.agents.live_request_queue import LiveRequestQueue
 from google.genai import types
 
 load_dotenv()
 
-# Import the MISE agent
+# Import the MISE agent and GCP integrations
 from app.mise_agent.agent import agent
+from app.gcp import get_session_service, get_secret, get_logger, log_agent_event
+
+# Initialize Cloud Logging
+logger = get_logger()
+
+# Load API key from Secret Manager (falls back to env var)
+api_key = get_secret("GOOGLE_API_KEY")
+if api_key:
+    os.environ["GOOGLE_API_KEY"] = api_key
 
 # Application setup
 app = FastAPI(title="MISE — Live Kitchen Intelligence")
-session_service = InMemorySessionService()
+session_service = get_session_service()
 runner = Runner(
     app_name="mise",
     agent=agent,
@@ -64,7 +72,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
     5. Graceful cleanup
     """
     await websocket.accept()
-    print(f"[MISE] Client connected: user={user_id}, session={session_id}")
+    log_agent_event("session_start", user_id=user_id, session_id=session_id)
+    logger.info(f"Client connected: user={user_id}, session={session_id}")
 
     # Create or resume session
     session = await session_service.create_session(
@@ -95,6 +104,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
 
     frame_count = 0
     audio_chunk_count = 0
+    last_significant_change = 0  # timestamp of last visual change
+    significant_change_pending = False
 
     async def upstream_task():
         """Receive WebSocket messages and forward to LiveRequestQueue."""
@@ -132,7 +143,14 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                 )
                             )
                             frame_count += 1
-                            print(f"[MISE] Video frame #{frame_count}: {len(frame_data)} bytes")
+                            # Track significant visual changes for smart observations
+                            if data.get("significant_change"):
+                                nonlocal last_significant_change, significant_change_pending
+                                last_significant_change = asyncio.get_event_loop().time()
+                                significant_change_pending = True
+                                print(f"[MISE] Video frame #{frame_count}: SIGNIFICANT CHANGE detected")
+                            elif frame_count % 30 == 0:
+                                print(f"[MISE] Video frame #{frame_count}: {len(frame_data)} bytes")
 
                         elif msg_type == "text":
                             # Text message from user
@@ -169,7 +187,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
     async def downstream_task():
         """Process run_live() events and send to WebSocket client."""
         try:
-            print("[MISE] Starting downstream run_live...")
+            logger.info("Starting downstream run_live...")
             async for event in runner.run_live(
                 session=session,
                 live_request_queue=live_request_queue,
@@ -209,7 +227,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                 "name": part.function_call.name,
                                 "args": args_dict
                             })
-                            print(f"[MISE] Tool called: {part.function_call.name} {args_dict}")
+                            log_agent_event("tool_call", tool=part.function_call.name, args=args_dict)
+                            logger.info(f"Tool called: {part.function_call.name} {args_dict}")
                         elif hasattr(part, "function_response") and part.function_response:
                             # Forward tool results to browser for rich data cards
                             try:
@@ -232,7 +251,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                 "type": "agent_transfer",
                                 "target_agent": target_agent,
                             })
-                            print(f"[MISE] Agent transfer: → {target_agent}")
+                            log_agent_event("agent_transfer", target=target_agent)
+                            logger.info(f"Agent transfer: → {target_agent}")
 
                 # Extract output transcription (what the agent is saying)
                 if event.output_transcription and event.output_transcription.text:
@@ -269,8 +289,18 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                     break
 
         except Exception as e:
-            print(f"[MISE] Downstream error: {e}")
+            log_agent_event("downstream_error", error=str(e))
+            logger.error(f"Downstream error: {e}")
             traceback.print_exc()
+            # Send error notification to client for graceful recovery
+            try:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Agent stream interrupted. Attempting recovery...",
+                    "recoverable": True,
+                })
+            except Exception:
+                pass
 
     # ── Proactive Observation Loop ──────────────────────────
     # This is the KEY differentiator: the agent evaluates the camera
@@ -280,43 +310,54 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
     OBSERVATION_PROMPTS = [
         (
             "[SYSTEM — PROACTIVE CHECK] Look at the current camera view. "
-            "If you see something noteworthy, route to the right specialist: "
-            "produce on counter → transfer to safety_nutrition, "
-            "active cooking technique issue → transfer to food_scientist, "
-            "timer/step transition → transfer to dinner_coordinator, "
-            "TV/cooking show → transfer to recipe_explorer. "
+            "If you see something noteworthy: "
+            "1) ALWAYS call add_visual_annotation to highlight it on screen, "
+            "2) Route to the right specialist: "
+            "produce on counter → safety_nutrition, "
+            "active cooking technique → food_scientist, "
+            "timer/step transition → dinner_coordinator, "
+            "TV/cooking show → recipe_explorer. "
             "If nothing noteworthy, say nothing at all. "
             "Do NOT repeat anything you've already said."
         ),
         (
             "[SYSTEM — OBSERVATION] Scan the kitchen scene. "
-            "Is anything cooking that needs a flip, stir, or status check? → dinner_coordinator. "
-            "Any produce that needs washing? → safety_nutrition. "
-            "Any technique that needs correction or explanation? → food_scientist. "
-            "Only speak if there's something genuinely useful to say."
+            "Needs flip/stir/status check? → annotate + dinner_coordinator. "
+            "Produce needs washing? → annotate + safety_nutrition. "
+            "Technique issue? → annotate + food_scientist. "
+            "IMPORTANT: If you spot something, call add_visual_annotation FIRST, "
+            "then speak about it. Only speak if genuinely useful."
         ),
         (
-            "[SYSTEM — KITCHEN SCAN] Quick check: "
-            "Is the food looking right? Any color changes, smoke, or steam "
-            "that suggest action is needed? Route observations to the right "
-            "specialist. Speak only if you have something helpful. "
-            "Don't repeat yourself."
+            "[SYSTEM — KITCHEN SCAN] Quick visual check: "
+            "Any color changes, smoke, steam, or items needing attention? "
+            "If yes: call add_visual_annotation to mark it on screen, "
+            "then route to the right specialist. "
+            "Speak only if you have something helpful. Don't repeat yourself."
         ),
     ]
 
     observation_index = 0
 
     async def observation_loop():
-        """Periodically nudge the agent to evaluate camera and speak proactively."""
-        nonlocal observation_index
+        """Smart observation loop — reacts to visual changes, not just timers."""
+        nonlocal observation_index, significant_change_pending
 
         # Wait for initial setup to complete
         await asyncio.sleep(10)
 
         try:
             while True:
-                # Wait between observations (15-25 seconds, varies to feel natural)
-                interval = 15 + (observation_index % 3) * 5
+                # Smart interval: shorter when visual changes detected, longer when idle
+                if significant_change_pending:
+                    # React quickly to visual changes (3-5s delay)
+                    interval = 3 + (observation_index % 3)
+                    significant_change_pending = False
+                    print("[MISE] Fast observation triggered by visual change")
+                else:
+                    # Normal pace (15-25 seconds)
+                    interval = 15 + (observation_index % 3) * 5
+
                 await asyncio.sleep(interval)
 
                 # Rotate through observation prompts to avoid repetition
@@ -331,7 +372,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
 
                 try:
                     live_request_queue.send_content(observation_content)
-                    print(f"[MISE] Observation check #{observation_index} sent")
+                    print(f"[MISE] Observation check #{observation_index} sent (interval={interval}s)")
                 except Exception:
                     break  # Queue closed, session ending
 
@@ -350,5 +391,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
     finally:
         observer.cancel()
         live_request_queue.close()
-        print(f"[MISE] Session ended: user={user_id}, session={session_id}")
+        log_agent_event("session_end", user_id=user_id, session_id=session_id)
+        logger.info(f"Session ended: user={user_id}, session={session_id}")
 
