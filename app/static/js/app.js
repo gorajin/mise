@@ -85,6 +85,7 @@ class MiseApp {
         this.frameDiffThreshold = 15; // pixel change threshold (0-255)
         this.frameDiffPercentThreshold = 8; // % of pixels that must change
         this.lastSignificantChangeTime = 0;
+        this.frameDiffCanvas = null; // cached canvas for frame diff (avoid GC)
 
         // Audio
         this.recordingContext = null;
@@ -135,18 +136,12 @@ class MiseApp {
             const meal = document.getElementById('mealInput').value.trim();
             const time = document.getElementById('timeInput').value;
             if (meal) this.mealPlan = { meal, dinnerTime: time || '19:00' };
-            if (this.isConnected) {
-                this.cameraPlaceholder.classList.add('hidden');
-                this.sendMealPlan();
-            } else {
-                this.start();
-            }
+            this.start();
         });
 
         document.getElementById('startFreeButton').addEventListener('click', () => {
             this.mealPlan = null;
-            if (this.isConnected) this.cameraPlaceholder.classList.add('hidden');
-            else this.start();
+            this.start();
         });
 
         document.getElementById('sendButton').addEventListener('click', () => this.sendText());
@@ -186,7 +181,10 @@ class MiseApp {
             if (e.key === 'Enter') document.getElementById('startButton').click();
         });
 
-        this.autoStart();
+        // Show the dinner planner and dismiss splash — wait for user gesture
+        // (iOS Safari requires user interaction before creating AudioContext)
+        this.requestWakeLock();
+        this.splashScreen.classList.add('hidden');
     }
 
     // ── Bottom Sheet ──
@@ -236,31 +234,14 @@ class MiseApp {
         }
     }
 
-    // ── Auto-Start ──
-    async autoStart() {
-        await this.requestWakeLock();
-        this.updateSplash('Starting camera...');
-        await this.startCamera();
-        this.updateSplash('Connecting to MISE...');
-        try { await this.connectWebSocket(); } catch (error) {
-            console.error('[MISE] WebSocket failed:', error);
-            this.addMessage('system', '❌ Could not connect to MISE. Please refresh the page.');
-            this.splashScreen.classList.add('hidden');
+    async start() {
+        // Must be called from a user gesture (button click) for iOS AudioContext
+        if (this.isConnected) {
+            // Already connected — just dismiss planner and send meal plan
+            this.cameraPlaceholder.classList.add('hidden');
+            if (this.mealPlan) this.sendMealPlan();
             return;
         }
-        this.updateSplash('Starting microphone...');
-        await this.startAudio();
-        this.startSessionTimer();
-        this.isCooking = true;
-        this.initAnnotationCanvas();
-        // Skip dinner planner — go straight to camera view
-        this.cameraPlaceholder.classList.add('hidden');
-        const fab = document.getElementById('fabNext');
-        if (fab && window.innerWidth < 768) fab.classList.add('visible');
-        this.splashScreen.classList.add('hidden');
-    }
-
-    async start() {
         this.updateSplash('Requesting camera access...');
         this.splashScreen.classList.remove('hidden');
         try {
@@ -665,11 +646,11 @@ class MiseApp {
             const item = args.food_item || 'Food';
             if (resultData && resultData.safe_internal_temp_f) {
                 title = `${item} → ${resultData.safe_internal_temp_f}°F`;
-                detail = resultData.notes || resultData.tip || 'Safe internal temperature';
+                detail = resultData.tips || resultData.visual_cues || 'Safe internal temperature';
                 const pct = Math.min(100, (resultData.safe_internal_temp_f / 212) * 100);
                 badge = `<div class="temp-gauge"><div class="temp-bar-track"><div class="temp-bar-fill" style="width:${pct}%"></div></div><div class="temp-value">${resultData.safe_internal_temp_f}°F</div></div>`;
             } else if (resultData) {
-                title = item; detail = resultData.danger_zone || resultData.note || 'Follow food safety guidelines';
+                title = item; detail = resultData.general_advice || resultData.danger_zone || 'Follow food safety guidelines';
                 badge = '<span class="tool-card-badge badge-safe">✓ GUIDELINES</span>';
             } else { title = `Checking ${item}...`; detail = 'Retrieving safe temperature data'; badge = ''; }
         } else if (toolName === 'get_produce_safety_data') {
@@ -686,11 +667,11 @@ class MiseApp {
             icon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c9a96e" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>';
             source = 'USDA NUTRITION'; cardClass = 'card-nutrition';
             const item = args.food_item || 'Food';
-            if (resultData && (resultData.calories_per_serving || resultData.calories)) {
-                const cal = resultData.calories_per_serving || resultData.calories;
+            if (resultData && (resultData.calories || resultData.calories_per_serving)) {
+                const cal = resultData.calories || resultData.calories_per_serving;
                 const protein = resultData.protein_g || 0, carbs = resultData.carbs_g || 0, fat = resultData.fat_g || 0;
                 title = `${item} — ${cal} cal`;
-                const serving = resultData.serving_size || '';
+                const serving = resultData.serving || resultData.serving_size || '';
                 detail = serving ? `Per ${serving}` : '';
                 badge = `<div class="macro-bars">
                     <div class="macro-bar macro-protein"><div class="macro-bar-fill" style="width:${Math.min(100, protein * 2)}%"></div><div class="macro-bar-label">${protein}g P</div></div>
@@ -996,7 +977,6 @@ class MiseApp {
         resize();
         window.addEventListener('resize', resize);
         this.annotationCtx = this.annotationCanvas.getContext('2d');
-        this.renderAnnotations();
     }
 
     addAnnotation(label, region, style, durationSeconds) {
@@ -1011,6 +991,8 @@ class MiseApp {
         this.annotations.push(annotation);
         // Max 5 annotations at once
         while (this.annotations.length > 5) this.annotations.shift();
+        // Start render loop if not already running
+        if (!this.annotationAnimFrame) this.renderAnnotations();
         this.logActivity('🎯', `Annotation: "${label}" [${style}] at ${region}`);
     }
 
@@ -1043,7 +1025,6 @@ class MiseApp {
 
     renderAnnotations() {
         const render = () => {
-            this.annotationAnimFrame = requestAnimationFrame(render);
             if (!this.annotationCtx || !this.annotationCanvas) return;
             const ctx = this.annotationCtx;
             const w = this.annotationCanvas.width;
@@ -1054,6 +1035,13 @@ class MiseApp {
             const now = Date.now();
             // Remove expired annotations
             this.annotations = this.annotations.filter(a => a.expiresAt > now);
+
+            // Stop the render loop when no annotations remain (saves mobile CPU)
+            if (this.annotations.length === 0) {
+                this.annotationAnimFrame = null;
+                return;
+            }
+            this.annotationAnimFrame = requestAnimationFrame(render);
 
             for (const ann of this.annotations) {
                 // Calculate opacity (fade in over 300ms, fade out over last 500ms)
@@ -1175,13 +1163,15 @@ class MiseApp {
         const h = this.captureCanvas.height;
         if (w === 0 || h === 0) return false;
 
-        // Sample at lower resolution for performance
+        // Sample at lower resolution for performance (reuse canvas to avoid GC)
         const sampleW = 160;
         const sampleH = 120;
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = sampleW;
-        tempCanvas.height = sampleH;
-        const tempCtx = tempCanvas.getContext('2d');
+        if (!this.frameDiffCanvas) {
+            this.frameDiffCanvas = document.createElement('canvas');
+            this.frameDiffCanvas.width = sampleW;
+            this.frameDiffCanvas.height = sampleH;
+        }
+        const tempCtx = this.frameDiffCanvas.getContext('2d');
         tempCtx.drawImage(this.cameraFeed, 0, 0, sampleW, sampleH);
         const currentFrame = tempCtx.getImageData(0, 0, sampleW, sampleH);
 

@@ -134,7 +134,10 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
 
                         if msg_type == "video_frame":
                             # Camera frame sent as base64 JPEG
-                            frame_data = base64.b64decode(data["data"])
+                            raw = data.get("data")
+                            if not raw:
+                                continue
+                            frame_data = base64.b64decode(raw)
                             live_request_queue.send_realtime(
                                 types.Blob(
                                     data=frame_data,
@@ -151,15 +154,21 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
 
                         elif msg_type == "text":
                             # Text message from user
+                            text_content = data.get("text", "")
+                            if not text_content:
+                                continue
                             content = types.Content(
                                 role="user",
-                                parts=[types.Part(text=data.get("text", ""))],
+                                parts=[types.Part(text=text_content)],
                             )
                             live_request_queue.send_content(content)
 
                         elif msg_type == "audio":
                             # Audio sent as base64
-                            audio_bytes = base64.b64decode(data["data"])
+                            raw = data.get("data")
+                            if not raw:
+                                continue
+                            audio_bytes = base64.b64decode(raw)
                             live_request_queue.send_realtime(
                                 types.Blob(
                                     data=audio_bytes,
@@ -253,8 +262,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                                 pass  # Don't break streaming for UI-only feature
 
                 # Extract output transcription (what the agent is saying)
-                if event.output_transcription and event.output_transcription.text:
-                    text = event.output_transcription.text
+                output_tx = getattr(event, "output_transcription", None)
+                if output_tx and getattr(output_tx, "text", None):
+                    text = output_tx.text
                     parts_data.append({
                         "type": "text",
                         "text": text,
@@ -262,8 +272,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, session_id: str
                     print(f"[MISE] Agent says: {text[:100]}...")
 
                 # Extract input transcription (what the user said)
-                if event.input_transcription and event.input_transcription.text:
-                    text = event.input_transcription.text
+                input_tx = getattr(event, "input_transcription", None)
+                if input_tx and getattr(input_tx, "text", None):
+                    text = input_tx.text
                     parts_data.append({
                         "type": "input_transcription",
                         "text": text,
