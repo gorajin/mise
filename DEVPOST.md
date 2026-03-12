@@ -112,7 +112,7 @@ For immediate roadmap:
 `google-adk` `gemini-2.5-flash` `fastapi` `websocket` `audioworklet` `canvas-api` `google-cloud-run` `google-cloud-firestore` `google-secret-manager` `google-cloud-logging` `python` `javascript`
 
 ## Live Demo
-**https://mise-t4b3dukkza-uc.a.run.app**
+**https://mise-965205106736.us-central1.run.app**
 
 ## Source Code
 [GitHub Repository](https://github.com/gorajin/mise)
