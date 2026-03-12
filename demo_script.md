@@ -1,98 +1,155 @@
 # MISE: The 4-Minute Hackathon Demo Script
 
-This script is designed specifically to hit every rubric in the Gemini Live Agent Challenge judging criteria, maximizing points for Innovation, Agentic Architecture, and Multimodal Capabilities.
+Optimized for the Gemini Live Agent Challenge judging rubric:
+- Innovation & Multimodal UX (40%)
+- Technical Implementation (30%)
+- Demo & Presentation (30%)
 
 ---
 
 ### Setup Requirements
-- Print out the Architecture Diagram.
-- Have a real kitchen setting (or a realistic counter setup).
-- Ingredients ready: A piece of raw chicken, an onion, fresh strawberries.
-- Have a loud pan sizzle sound ready to play (or actually cook).
-- Use a phone stand or tripod so the camera faces the cutting board.
+- Real kitchen setting (or realistic counter setup)
+- Ingredients ready: Raw chicken, onion, fresh strawberries, a lemon
+- Phone on stand/tripod facing cutting board
+- Cooking show playing on a laptop nearby (for Act 4)
+- Have the Cloud Run console open in a browser tab
+- Observation interval pre-set to 5s for demo responsiveness
 
 ---
 
-## 🎬 Act 1: Breaking the Text Box (0:00 - 0:45)
-**Goal: Define the problem and prove "voice-first" innovation.**
+## Act 1: Breaking the Text Box (0:00 - 0:50)
+**Goal: Prove voice-first innovation + multiagent routing + visual annotations**
 
-**[Video opens]** Presenter is mixing raw chicken in a bowl. Hands are covered in marinade.
+**[Video opens]** Presenter has hands in marinade bowl.
 
-**Presenter (to camera):** 
->"This is why text-based AI doesn't work in the kitchen. When you actually need help, your hands look like this. I built MISE so I never have to touch my phone while cooking again."
+**Presenter (to camera):**
+> "When you're cooking, your hands look like this. Text-based AI is useless. I built MISE — a multiagent kitchen intelligence system — so I never touch my phone while cooking."
 
-**[Action]** Presenter uses an elbow/knuckle to tap "Start" on the phone (or the phone is already running MISE).
+**[Action]** Phone is already running MISE. Camera active, orb pulsing.
 
-**MISE (Voice):** 
->"Hey chef! I can see your kitchen — what are we making tonight?"
+**MISE (Voice):**
+> "Hey chef! I can see your kitchen — what are we making tonight?"
 
-**Presenter:** 
->"I'm making seared chicken, roasted potatoes, and a strawberry salad. I want to eat in 45 minutes."
+**Presenter:**
+> "Seared chicken with roasted potatoes and strawberry salad. Dinner at 7."
 
-**[Visual Hook]** The camera zooms in on the phone screen. The new **Dinner Timeline UI** pops into view, showing steps being generated dynamically.
+**[Visual Hook]** The Dinner Timeline dynamically populates steps. Phase bar activates at PREP. The orb shows agent badge: "Coordinator".
 
-**MISE (Voice):** 
->"Got it. Let's start with the potatoes since they take the longest. Preheat the oven to 400..."
+**Narrate (over footage):**
+> "MISE immediately routes to the Dinner Coordinator — one of four specialist AI agents — which builds a backwards timeline. Watch the agent badge change."
 
+---
 
-## 🎬 Act 2: Multimodal Grounding (0:45 - 1:45)
-**Goal: Prove the agent uses the camera and grounding tools effectively without hallucinations.**
+## Act 2: Visual Intelligence + Safety Agent (0:50 - 1:50)
+**Goal: Show camera annotations, proactive observation, and Safety agent**
 
-**[Action]** Presenter puts the chicken in a hot pan (or plays sizzle). Then moves to the cutting board and puts the pint of strawberries right in front of the phone camera.
+**[Action]** Place strawberries in front of camera.
 
-**Presenter:** 
->"MISE, can you see these?"
+**Presenter:**
+> "MISE, what about these strawberries?"
 
-**[Visual Hook]** The **"EWG Produce" HUD Overlay** flashes on screen (`🥬 Checking wash method...`).
+**[Visual Hook]** The agent badge changes to "Safety". A **visual annotation** appears on the camera feed: pulsing purple reticle labeled "Strawberries" with a red "Dirty Dozen" badge.
 
-**MISE (Voice):** 
->"I see the strawberries. Those are on the Dirty Dozen list — pesticide residue is high. Give them a 5-minute vinegar bath, one part vinegar to three parts water."
+**MISE (Voice):**
+> "I see the strawberries. Those are Dirty Dozen — high pesticide residue. Vinegar bath, one part vinegar to three parts water, five minutes."
 
-**[Action]** Presenter nods, starts chopping an onion. The pan sizzles loudly in the background.
+**[Visual Hook]** The EWG Produce Safety tool card slides in with the data.
 
+**Narrate:**
+> "Two things just happened. First, the Safety & Nutrition agent took over — you can see the agent transfer in the activity log. Second, MISE drew a visual annotation directly on the camera feed. It's not just talking about what it sees — it's pointing to it."
 
-## 🎬 Act 3: Barge-In & Proactivity (1:45 - 2:45)
-**Goal: Show low latency interruption and the proactive observation loop.**
+**[Action]** Wait 5 seconds in silence. The observation loop fires.
 
-**MISE (Voice):** 
->"While the chicken sears, make sure you don't crowd the pan, because..."
+**MISE (Voice — Unprompted):**
+> "I notice you still have the chicken out. Room temp is fine for searing, but don't leave it out longer than 20 minutes."
 
-**[Action]** Presenter interrupts MISE mid-sentence.
+**[Visual Hook]** Annotation appears: amber "warning" reticle labeled "Chicken - 20 min max".
 
-**Presenter:** 
->"Wait MISE, what temperature does the chicken need to be?"
+---
 
-**[Visual Hook]** MISE stops instantly. The **"USDA Safety" HUD Overlay** flashes on screen (`🌡️ Checking temp...`).
+## Act 3: Barge-In + Food Science Agent (1:50 - 2:40)
+**Goal: Show interruption handling + Science agent + all 4 agents used**
 
-**MISE (Voice):** 
->"Chicken needs to hit 165°F internally."
+**MISE (Voice):**
+> "While we prep, let me tell you about the potatoes—"
 
-**[Action]** Presenter waits in silence for about 15 seconds, just staring at the pan. This triggers the observation loop.
+**[Action]** Presenter interrupts mid-sentence.
 
-**MISE (Voice - Unprompted):** 
->"I can see a lot of smoke coming off that pan. You might be past the oil's smoke point — lower the heat a bit."
+**Presenter:**
+> "Wait — why do I need to pat the chicken dry before searing?"
 
+**[Visual Hook]** MISE stops instantly. Agent badge changes to "Scientist". Orb pulses green.
 
-## 🎬 Act 4: Architecture & Proof of Cloud Run (2:45 - 4:00)
-**Goal: Satisfy the technical implementation and GCP requirements.**
+**MISE (Voice):**
+> "Surface moisture is the enemy. Water boils at 212 degrees, but browning — the Maillard reaction — needs 300 plus. Pat it dry, and you get a crust instead of steam."
 
-**[Action]** Presenter wipes hands, picks up the printed Architecture Diagram.
+**[Visual Hook]** Annotation on camera: green "success" reticle labeled "Maillard 300F+".
 
-**Presenter (to camera):** 
->"To build this, we had to move beyond turn-based chat. MISE uses the Google Agent Development Kit with the Gemini 2.0 Flash Live API for bidirectional streaming over WebSockets."
+**Narrate:**
+> "That's three specialist agents shown so far. Let me trigger the fourth."
 
-**[Visual Hook]** Screen recording of the Google Cloud console showing the active Cloud Run deployment (`mise-xxx.run.app`).
+**[Action]** Point camera at laptop showing cooking show.
 
-**Presenter:** 
->"The backend runs entirely on Google Cloud Run. We process 16kHz PCM audio straight from the microphone alongside 1 frame-per-second video. Because the Gemini Live API expects 24kHz audio back, we built a custom dual-AudioContext architecture in the browser to handle the sample rate conversion."
+**Presenter:**
+> "MISE, what are they making on that show?"
 
-**[Visual Hook]** Show the pytest terminal running the Grounding Tool tests (`25 passed in 0.1s`).
+**[Visual Hook]** Agent badge changes to "Explorer". Purple annotation: "Risotto" label appears.
 
-**Presenter:** 
->"To completely eliminate food safety hallucinations, we give the agent three strict grounding tools that pull data from local USDA and EWG databases. And because our UI is just HTML/JS over a WebSocket, this exact codebase is ready to be deployed to tomorrow's AR Smart Glasses."
+**MISE (Voice):**
+> "Looks like a mushroom risotto. I can see them adding stock gradually — that's the key. Want me to reverse-engineer the recipe and build a grocery list?"
 
-**Presenter (to phone):** 
->"Thanks MISE."
+---
 
-**MISE (Voice):** 
->"Anytime, chef. Dinner's going to be great."
+## Act 4: Architecture + GCP Stack (2:40 - 4:00)
+**Goal: Satisfy Technical Implementation (30%) — show depth**
+
+**[Action]** Switch to screen recording.
+
+**Presenter (to camera):**
+> "Let me show you how this works under the hood."
+
+**[Screen: Architecture diagram]** Show the animated HTML architecture page.
+
+**Presenter:**
+> "MISE uses a multiagent architecture built on the Google Agent Development Kit. There are four specialist agents — Coordinator, Scientist, Safety, and Explorer — orchestrated by a root agent that routes using Gemini's native function calling."
+
+**[Screen: Cloud Run console]** Show active deployment.
+
+**Presenter:**
+> "The backend runs on Cloud Run with Firestore for session persistence, Secret Manager for API keys, and Cloud Logging for observability. Every tool call, agent transfer, and observation is structured-logged."
+
+**[Screen: Terminal running tests]**
+
+**Presenter:**
+> "We have 50 tests covering all 8 grounding tools and the multiagent hierarchy."
+
+**[Screen: Show the visual annotation on camera]**
+
+**Presenter:**
+> "What makes MISE different is visual intelligence. The agent doesn't just see through the camera — it draws annotations directly on the feed. When it identifies produce, it highlights it. When food needs attention, it marks it. Frame differencing detects visual changes and triggers faster observations automatically."
+
+**Presenter (to phone):**
+> "Thanks MISE."
+
+**MISE (Voice):**
+> "Anytime, chef."
+
+---
+
+## Key Demo Beats Checklist
+
+| Criterion | Shown In | Proof |
+|-----------|----------|-------|
+| Multimodal input (camera + voice) | Acts 1-3 | Camera active throughout |
+| Multimodal output (voice + visual annotations) | Acts 2-3 | Annotations drawn on camera feed |
+| Proactive behavior | Act 2 | Agent speaks unprompted |
+| Barge-in interruption | Act 3 | Stops mid-sentence |
+| Multiagent routing (all 4) | Acts 1-3 | Agent badge changes visible |
+| Tool use (grounding) | Act 2 | Safety card appears |
+| Visual annotations | Acts 2-3 | Reticle overlays on camera |
+| Frame differencing | Act 4 | Explained + demo'd |
+| Cloud Run deployment | Act 4 | Console screenshot |
+| Firestore + Secret Manager | Act 4 | Architecture diagram |
+| Cloud Logging | Act 4 | Mentioned in stack |
+| Test suite | Act 4 | Terminal output |
+| Innovation pitch | Act 1 | "Hands in marinade" opening |

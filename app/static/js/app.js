@@ -74,6 +74,18 @@ class MiseApp {
             recipe_explorer: { name: 'Explorer', emoji: '📺', color: '#c77dba' },
         };
 
+        // Visual annotations
+        this.annotations = [];
+        this.annotationCanvas = null;
+        this.annotationCtx = null;
+        this.annotationAnimFrame = null;
+
+        // Frame differencing
+        this.prevFrameData = null;
+        this.frameDiffThreshold = 15; // pixel change threshold (0-255)
+        this.frameDiffPercentThreshold = 8; // % of pixels that must change
+        this.lastSignificantChangeTime = 0;
+
         // Audio
         this.recordingContext = null;
         this.playbackContext = null;
@@ -87,6 +99,7 @@ class MiseApp {
         // DOM
         this.cameraFeed = document.getElementById('cameraFeed');
         this.captureCanvas = document.getElementById('captureCanvas');
+        this.annotationCanvas = document.getElementById('annotationCanvas');
         this.cameraPlaceholder = document.getElementById('cameraPlaceholder');
         this.connectionStatus = document.getElementById('connectionStatus');
         this.sessionTimer = document.getElementById('sessionTimer');
@@ -239,6 +252,7 @@ class MiseApp {
         await this.startAudio();
         this.startSessionTimer();
         this.isCooking = true;
+        this.initAnnotationCanvas();
         // Skip dinner planner — go straight to camera view
         this.cameraPlaceholder.classList.add('hidden');
         const fab = document.getElementById('fabNext');
@@ -258,6 +272,7 @@ class MiseApp {
             this.startSessionTimer();
             this.cameraPlaceholder.classList.add('hidden');
             this.isCooking = true;
+            this.initAnnotationCanvas();
             const fab = document.getElementById('fabNext');
             if (fab && window.innerWidth < 768) fab.classList.add('visible');
             setTimeout(() => this.splashScreen.classList.add('hidden'), 500);
@@ -308,8 +323,12 @@ class MiseApp {
         if (!this.isCameraActive || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
         const ctx = this.captureCanvas.getContext('2d');
         ctx.drawImage(this.cameraFeed, 0, 0, 640, 480);
+        // Compute frame diff for smart observation triggers
+        const hasChange = this.computeFrameDiff();
         const dataUrl = this.captureCanvas.toDataURL('image/jpeg', 0.6);
-        this.ws.send(JSON.stringify({ type: 'video_frame', data: dataUrl.split(',')[1] }));
+        const payload = { type: 'video_frame', data: dataUrl.split(',')[1] };
+        if (hasChange) payload.significant_change = true;
+        this.ws.send(JSON.stringify(payload));
     }
 
     // ── Audio ──
@@ -505,6 +524,19 @@ class MiseApp {
     handleMessage(event) {
         try {
             const data = JSON.parse(event.data);
+
+            // Handle server-side error notifications
+            if (data.type === 'error') {
+                console.warn('[MISE] Server error:', data.message);
+                if (data.recoverable) {
+                    this.addMessage('system', `⚠️ ${data.message || 'Connection issue. Recovering...'}`);
+                    this.updateAIStatus('idle');
+                } else {
+                    this.addMessage('system', `❌ ${data.message || 'Connection lost. Please refresh.'}`);
+                }
+                return;
+            }
+
             if (data.parts) {
                 for (const part of data.parts) {
                     if (part.type === 'text' && part.text) {
@@ -536,27 +568,34 @@ class MiseApp {
     }
 
     handleFunctionCall(call) {
+        const args = call.args || {};
         if (call.name === 'update_timeline_step') {
-            this.updateTimelineUI(call.args);
+            this.updateTimelineUI(args);
         } else if (call.name === 'set_observation_interval') {
-            const newIntervalSeconds = call.args.seconds || 15;
+            const newIntervalSeconds = args.seconds || 15;
             console.log(`[MISE] Agent updated visual polling to ${newIntervalSeconds}s.`);
             if (this.frameInterval) {
                 clearInterval(this.frameInterval);
                 this.frameInterval = setInterval(() => this.captureAndSendFrame(), newIntervalSeconds * 1000);
             }
-            this.logActivity('📷', `Camera interval → ${newIntervalSeconds}s: ${call.args.reason || ''}`);
+            this.logActivity('📷', `Camera interval → ${newIntervalSeconds}s: ${args.reason || ''}`);
+        } else if (call.name === 'add_visual_annotation') {
+            const label = args.label || 'Observation';
+            const region = args.region || 'center';
+            const style = args.style || 'info';
+            const duration = args.duration_seconds || 5;
+            this.addAnnotation(label, region, style, duration);
         } else if (call.name === 'analyze_and_recreate_recipe') {
             this.updateAIStatus('thinking');
-            this.pendingToolCalls[call.name] = call.args;
-            const dishName = call.args.dish_name || 'Recipe';
+            this.pendingToolCalls[call.name] = args;
+            const dishName = args.dish_name || 'Recipe';
             this.logActivity('👨‍🍳', `Reverse-engineering: "${dishName}"`);
         } else if (['get_food_safety_data', 'get_produce_safety_data', 'get_nutrition_estimate'].includes(call.name)) {
             this.updateAIStatus('thinking');
-            this.pendingToolCalls[call.name] = call.args;
-            this.showToolCard(call.name, call.args, null);
+            this.pendingToolCalls[call.name] = args;
+            this.showToolCard(call.name, args, null);
             const icons = { get_food_safety_data: '🌡️', get_produce_safety_data: '🥬', get_nutrition_estimate: '📊' };
-            const argVal = call.args.food_item || call.args.produce_item || '';
+            const argVal = args.food_item || args.produce_item || '';
             this.logActivity(icons[call.name] || '🔧', `Tool: ${call.name.replace('get_', '').replace('_data', '').replace('_estimate', '')}("${argVal}")`);
         }
     }
@@ -944,6 +983,234 @@ class MiseApp {
             this.sessionTimer.textContent = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
         }, 1000);
     }
+    // ── Visual Annotations on Camera Feed ──
+    initAnnotationCanvas() {
+        if (!this.annotationCanvas) return;
+        const container = this.annotationCanvas.parentElement;
+        if (!container) return;
+        const resize = () => {
+            const rect = this.cameraFeed.getBoundingClientRect();
+            this.annotationCanvas.width = rect.width;
+            this.annotationCanvas.height = rect.height;
+        };
+        resize();
+        window.addEventListener('resize', resize);
+        this.annotationCtx = this.annotationCanvas.getContext('2d');
+        this.renderAnnotations();
+    }
+
+    addAnnotation(label, region, style, durationSeconds) {
+        const now = Date.now();
+        const annotation = {
+            id: `ann-${now}-${Math.random().toString(36).slice(2, 6)}`,
+            label, region, style,
+            createdAt: now,
+            expiresAt: now + (durationSeconds || 5) * 1000,
+            opacity: 0, // fade in
+        };
+        this.annotations.push(annotation);
+        // Max 5 annotations at once
+        while (this.annotations.length > 5) this.annotations.shift();
+        this.logActivity('🎯', `Annotation: "${label}" [${style}] at ${region}`);
+    }
+
+    getRegionPosition(region, canvasW, canvasH) {
+        const pad = 20;
+        const positions = {
+            'center': { x: canvasW / 2, y: canvasH / 2 },
+            'top-left': { x: pad + 60, y: pad + 30 },
+            'top-right': { x: canvasW - pad - 60, y: pad + 30 },
+            'bottom-left': { x: pad + 60, y: canvasH - pad - 30 },
+            'bottom-right': { x: canvasW - pad - 60, y: canvasH - pad - 30 },
+            'top-center': { x: canvasW / 2, y: pad + 30 },
+            'bottom-center': { x: canvasW / 2, y: canvasH - pad - 30 },
+            'left-center': { x: pad + 60, y: canvasH / 2 },
+            'right-center': { x: canvasW - pad - 60, y: canvasH / 2 },
+        };
+        return positions[region] || positions['center'];
+    }
+
+    getAnnotationColors(style) {
+        const styles = {
+            'info': { bg: 'rgba(74, 158, 255, 0.85)', border: '#4a9eff', glow: 'rgba(74, 158, 255, 0.4)' },
+            'success': { bg: 'rgba(90, 184, 122, 0.85)', border: '#5ab87a', glow: 'rgba(90, 184, 122, 0.4)' },
+            'warning': { bg: 'rgba(232, 166, 58, 0.85)', border: '#e8a63a', glow: 'rgba(232, 166, 58, 0.4)' },
+            'danger': { bg: 'rgba(232, 93, 58, 0.85)', border: '#e85d3a', glow: 'rgba(232, 93, 58, 0.5)' },
+            'identify': { bg: 'rgba(199, 125, 186, 0.85)', border: '#c77dba', glow: 'rgba(199, 125, 186, 0.4)' },
+        };
+        return styles[style] || styles['info'];
+    }
+
+    renderAnnotations() {
+        const render = () => {
+            this.annotationAnimFrame = requestAnimationFrame(render);
+            if (!this.annotationCtx || !this.annotationCanvas) return;
+            const ctx = this.annotationCtx;
+            const w = this.annotationCanvas.width;
+            const h = this.annotationCanvas.height;
+            if (w === 0 || h === 0) return;
+            ctx.clearRect(0, 0, w, h);
+
+            const now = Date.now();
+            // Remove expired annotations
+            this.annotations = this.annotations.filter(a => a.expiresAt > now);
+
+            for (const ann of this.annotations) {
+                // Calculate opacity (fade in over 300ms, fade out over last 500ms)
+                const age = now - ann.createdAt;
+                const remaining = ann.expiresAt - now;
+                if (age < 300) ann.opacity = age / 300;
+                else if (remaining < 500) ann.opacity = remaining / 500;
+                else ann.opacity = 1;
+
+                const pos = this.getRegionPosition(ann.region, w, h);
+                const colors = this.getAnnotationColors(ann.style);
+                const alpha = ann.opacity;
+
+                // Pulsing glow
+                const pulse = 0.5 + 0.5 * Math.sin(now / 400);
+
+                // Outer glow ring
+                ctx.save();
+                ctx.globalAlpha = alpha * 0.3 * pulse;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 45 + pulse * 8, 0, Math.PI * 2);
+                ctx.fillStyle = colors.glow;
+                ctx.fill();
+                ctx.restore();
+
+                // Crosshair lines
+                ctx.save();
+                ctx.globalAlpha = alpha * 0.6;
+                ctx.strokeStyle = colors.border;
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([6, 4]);
+                // Horizontal
+                ctx.beginPath();
+                ctx.moveTo(pos.x - 35, pos.y);
+                ctx.lineTo(pos.x - 15, pos.y);
+                ctx.moveTo(pos.x + 15, pos.y);
+                ctx.lineTo(pos.x + 35, pos.y);
+                // Vertical
+                ctx.moveTo(pos.x, pos.y - 35);
+                ctx.lineTo(pos.x, pos.y - 15);
+                ctx.moveTo(pos.x, pos.y + 15);
+                ctx.lineTo(pos.x, pos.y + 35);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+
+                // Corner brackets (targeting reticle)
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.strokeStyle = colors.border;
+                ctx.lineWidth = 2.5;
+                const s = 20; // bracket size
+                const r = 28; // radius from center
+                // Top-left bracket
+                ctx.beginPath();
+                ctx.moveTo(pos.x - r, pos.y - r + s);
+                ctx.lineTo(pos.x - r, pos.y - r);
+                ctx.lineTo(pos.x - r + s, pos.y - r);
+                ctx.stroke();
+                // Top-right bracket
+                ctx.beginPath();
+                ctx.moveTo(pos.x + r - s, pos.y - r);
+                ctx.lineTo(pos.x + r, pos.y - r);
+                ctx.lineTo(pos.x + r, pos.y - r + s);
+                ctx.stroke();
+                // Bottom-left bracket
+                ctx.beginPath();
+                ctx.moveTo(pos.x - r, pos.y + r - s);
+                ctx.lineTo(pos.x - r, pos.y + r);
+                ctx.lineTo(pos.x - r + s, pos.y + r);
+                ctx.stroke();
+                // Bottom-right bracket
+                ctx.beginPath();
+                ctx.moveTo(pos.x + r - s, pos.y + r);
+                ctx.lineTo(pos.x + r, pos.y + r);
+                ctx.lineTo(pos.x + r, pos.y + r - s);
+                ctx.stroke();
+                ctx.restore();
+
+                // Label pill
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.font = 'bold 13px Inter, sans-serif';
+                const textWidth = ctx.measureText(ann.label).width;
+                const pillW = textWidth + 20;
+                const pillH = 28;
+                const pillX = pos.x - pillW / 2;
+                const pillY = pos.y + 36;
+
+                // Pill background
+                ctx.fillStyle = colors.bg;
+                ctx.beginPath();
+                ctx.roundRect(pillX, pillY, pillW, pillH, 6);
+                ctx.fill();
+
+                // Pill border
+                ctx.strokeStyle = colors.border;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect(pillX, pillY, pillW, pillH, 6);
+                ctx.stroke();
+
+                // Label text
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(ann.label, pos.x, pillY + pillH / 2);
+                ctx.restore();
+            }
+        };
+        render();
+    }
+
+    // ── Frame Differencing (Smart Observation Triggers) ──
+    computeFrameDiff() {
+        if (!this.isCameraActive || !this.captureCanvas) return false;
+        const ctx = this.captureCanvas.getContext('2d');
+        const w = this.captureCanvas.width;
+        const h = this.captureCanvas.height;
+        if (w === 0 || h === 0) return false;
+
+        // Sample at lower resolution for performance
+        const sampleW = 160;
+        const sampleH = 120;
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = sampleW;
+        tempCanvas.height = sampleH;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(this.cameraFeed, 0, 0, sampleW, sampleH);
+        const currentFrame = tempCtx.getImageData(0, 0, sampleW, sampleH);
+
+        if (!this.prevFrameData) {
+            this.prevFrameData = currentFrame.data.slice();
+            return false;
+        }
+
+        let changedPixels = 0;
+        const totalPixels = sampleW * sampleH;
+        for (let i = 0; i < currentFrame.data.length; i += 4) {
+            const rDiff = Math.abs(currentFrame.data[i] - this.prevFrameData[i]);
+            const gDiff = Math.abs(currentFrame.data[i + 1] - this.prevFrameData[i + 1]);
+            const bDiff = Math.abs(currentFrame.data[i + 2] - this.prevFrameData[i + 2]);
+            if ((rDiff + gDiff + bDiff) / 3 > this.frameDiffThreshold) changedPixels++;
+        }
+
+        this.prevFrameData = currentFrame.data.slice();
+        const changePercent = (changedPixels / totalPixels) * 100;
+        const significantChange = changePercent > this.frameDiffPercentThreshold;
+
+        if (significantChange) {
+            this.lastSignificantChangeTime = Date.now();
+            console.log(`[MISE] Frame diff: ${changePercent.toFixed(1)}% changed — significant`);
+        }
+
+        return significantChange;
+    }
+
     // ── Timer Chime (Web Audio API) ──
     playTimerChime() {
         try {

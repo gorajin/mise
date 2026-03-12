@@ -184,10 +184,10 @@ def get_nutrition_estimate(food_item: str) -> dict:
     }
 
 
-def update_timeline_step(step_name: str, step_description: str, status: str) -> str:
+def update_timeline_step(step_name: str, step_description: str, status: str) -> dict:
     """Update the visual dinner timeline on the user's screen.
-    
-    Use this tool whenever you establish a cooking sequence, or when a user moves 
+
+    Use this tool whenever you establish a cooking sequence, or when a user moves
     to the next step in their cooking process. This provides a visual confirmation
     (Agentic Proof) of the workflow you are managing.
 
@@ -197,9 +197,14 @@ def update_timeline_step(step_name: str, step_description: str, status: str) -> 
         status: The state of this step. Should be "pending", "active", or "completed".
 
     Returns:
-        A confirmation message that the UI was updated.
+        A dict confirming the UI update with step details.
     """
-    return f"Successfully updated timeline UI: {step_name} -> {status}"
+    return {
+        "action": "timeline_updated",
+        "step_name": step_name,
+        "step_description": step_description,
+        "status": status,
+    }
 
 
 def set_observation_interval(seconds: int, reason: str) -> dict:
@@ -222,6 +227,44 @@ def set_observation_interval(seconds: int, reason: str) -> dict:
         "action": "interval_updated",
         "new_interval_seconds": seconds,
         "reason": reason,
+    }
+
+
+def add_visual_annotation(
+    label: str, region: str, style: str, duration_seconds: int = 5
+) -> dict:
+    """Add a visual annotation overlay on the user's camera feed to highlight something you see.
+
+    Use this tool whenever you observe something noteworthy in the camera — food that
+    needs attention, an ingredient you're identifying, a safety concern, or doneness
+    feedback. The annotation appears as a labeled highlight directly on the video feed,
+    making it visually obvious what you're referring to.
+
+    This is your PRIMARY way to visually communicate camera observations. Use it
+    liberally — every time you comment on something visible, annotate it.
+
+    Args:
+        label: Short text label (1-5 words) for the annotation.
+            Examples: "Flip now!", "Needs 165°F", "Dirty Dozen ⚠", "Nice sear ✓",
+            "Too much smoke", "Add oil", "Strawberries"
+        region: Where in the camera frame the item is located.
+            One of: "center", "top-left", "top-right", "bottom-left", "bottom-right",
+            "top-center", "bottom-center", "left-center", "right-center"
+        style: The visual style/urgency of the annotation.
+            One of: "info" (blue, neutral observation), "success" (green, looks good),
+            "warning" (amber, needs attention soon), "danger" (red, act now),
+            "identify" (purple, identifying an ingredient/item)
+        duration_seconds: How long the annotation stays visible (default 5, max 15).
+
+    Returns:
+        A confirmation dict with the annotation parameters.
+    """
+    return {
+        "action": "visual_annotation_added",
+        "label": label,
+        "region": region,
+        "style": style,
+        "duration_seconds": min(duration_seconds, 15),
     }
 
 
